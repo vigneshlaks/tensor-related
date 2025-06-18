@@ -8,10 +8,8 @@ bool MatMulReluFusion::matchRewrite(Op* op, std::vector<Op*>& context, size_t in
       MatMulReluOp* matmulrelu = new MatMulReluOp(matmul->lhs,matmul->rhs,  matmul->output);
       // swap
       context[index] = matmulrelu;
-      //std::cout << static_cast <MatMulReluOp*> (context[index]) ->print();
       // delete
       context[index+1] = nullptr;
-      //std::cout << context[index+1];
       return true;
     }
   }
