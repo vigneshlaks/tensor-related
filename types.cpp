@@ -22,6 +22,9 @@ float Tensor::getValue(std::vector<size_t> index) {
 void Tensor::fillStride() {
     stride.resize(dimension.size());
     stride.back() = 1;
+    
+    // specify jump sizes based on what comes after
+    // hence why we iterate backwards
     for (int i = dimension.size() - 2; i >= 0; i--) {
         stride[i] = stride[i + 1] * dimension[i + 1];
     }

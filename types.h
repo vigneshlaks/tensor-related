@@ -15,7 +15,6 @@ public:
     Tensor(std::vector<size_t>& d);
     Tensor(std::vector<size_t>& d, std::vector<float>& s);
 
-    // Get value at specific index
     float getValue(std::vector<size_t> index);
 };
 
