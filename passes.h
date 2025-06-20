@@ -31,6 +31,9 @@ public:
     
     // apply passes across ops
     void run();
+
+    // run op verify
+    bool verify();
 };
 
 #endif

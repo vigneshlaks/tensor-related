@@ -40,3 +40,12 @@ void PassManager::run() {
     ops.erase(std::remove(ops.begin(), ops.end(), nullptr), ops.end());
   }
 };
+
+bool PassManager::verify() {
+  for (auto& op : ops) {
+    if (!(op->verify())) {
+      return false;
+    }
+  }
+  return true;
+};

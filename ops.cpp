@@ -7,6 +7,8 @@ bool MatMulOp::verify(){
         return false;
     }
 
+    // TODO: check output
+
     return lhs.dimension[lhs.dimension.size() - 1] == rhs.dimension[rhs.dimension.size() - 2];
 };
 
