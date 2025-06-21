@@ -3,7 +3,16 @@
 
 #include <vector>
 
-class Tensor {
+class SSA {
+private:
+    std::string ssa = "";
+
+public:
+    bool name_set();
+    void set_name(std::string name);
+};
+
+class Tensor : SSA {
 private:
     std::vector<float> storage = {};
     void fillStride();

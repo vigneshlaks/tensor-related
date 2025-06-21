@@ -1,6 +1,15 @@
 #include "types.h"
 #include <iostream>
 
+bool SSA::name_set() {
+    return !ssa.empty();
+};
+
+void SSA::set_name(std::string name) {
+    ssa = name;
+}
+
+
 Tensor::Tensor(std::vector<size_t>& d) : dimension(d) {
     fillStride();
 }
