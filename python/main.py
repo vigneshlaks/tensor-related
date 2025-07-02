@@ -39,20 +39,26 @@ def fuse_operations(instructions):
    
    return result
 
+def is_pointwise_op(op):
+    """Check if operation is pointwise (element-by-element)"""
+    pointwise_ops = {"add", "multiply", "subtract", "divide", "relu", "sigmoid", "tanh", "exp", "log"}
+    return op in pointwise_ops
+
 def can_fuse(op1, op2):
-   """Check if op1 output feeds directly into op2"""
-   return op1["dest"] in op2.get("args", [])
+    """Check if op1 output feeds directly into op2 AND both are pointwise"""
+    return (op1["dest"] in op2.get("args", []) and 
+            is_pointwise_op(op2["op"]))
 
 def create_fused_op(producer, consumer):
-   """Create a fused operation from producer-consumer pair"""
-   return {
-       "dest": consumer["dest"],
-       "op": "fused",
-       "steps": [
-           f"{producer['op']}({', '.join(producer['args'])})",
-           f"{consumer['op']}($prev, {consumer['args'][1]})"
-       ]
-   }
+    """Create a fused operation from producer-consumer pair"""
+    return {
+        "dest": consumer["dest"],
+        "op": "fused",
+        "steps": [
+            f"{producer['op']}({', '.join(producer['args'])})",
+            f"{consumer['op']}($prev, {consumer['args'][1]})"
+        ]
+    }
 
 '''
 Then we need to write dead code elimination
