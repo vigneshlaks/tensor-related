@@ -1,0 +1,25 @@
+{
+ "function": "@main",
+ "instructions": [
+   {
+     "dest": "w1",
+     "op": "const",
+     "value": [[0.1, 0.2], [0.3, 0.4]]
+   },
+   {
+     "dest": "b1", 
+     "op": "const",
+     "value": [0.1, 0.2]
+   },
+   {
+     "dest": "h1_pre",
+     "op": "matmul",
+     "args": ["input", "w1"]
+   },
+   {
+     "dest": "h1",
+     "op": "add",
+     "args": ["h1_pre", "b1"]
+   }
+ ]
+}
