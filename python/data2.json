@@ -11,14 +11,12 @@
       "value": [0.1, 0.2]
     },
     {
-      "dest": "h1_pre",
-      "op": "matmul",
-      "args": ["input", "w1"]
-    },
-    {
       "dest": "h1",
-      "op": "add",
-      "args": ["h1_pre", "b1"]
+      "op": "fused",
+      "steps": [
+        "matmul(input, w1)",
+        "add($prev, b1)"
+      ]
     }
   ]
 }
