@@ -3,54 +3,65 @@ import torch
 import triton
 import triton.language as tl
 
-def ir_to_json():
-   pass
-
-def json_to_ir(json_data):
-   lines = []
-   for instr in json_data["instructions"]:
-       string = None
-       if instr["op"] == "const":
-           string = f"{instr['dest']} = {instr['op']} {instr['value']};"
-       else:
-           string = f"{instr['dest']} = {instr['op']} {instr['args']};"
-       lines.append(string)
-
-   with open("output.txt", "w") as file:
-       file.write("\n".join(lines))
+# Sample matmul JSON embedded in the script
+MATMUL_JSON = {
+    "instructions": [
+        {
+            "dest": "a",
+            "op": "load",
+            "args": ["input_a"],
+            "shape": [1024, 1024],
+            "dtype": "float32"
+        },
+        {
+            "dest": "b", 
+            "op": "load",
+            "args": ["input_b"],
+            "shape": [1024, 1024],
+            "dtype": "float32"
+        },
+        {
+            "dest": "c",
+            "op": "matmul",
+            "args": ["a", "b"],
+            "shape": [1024, 1024],
+            "dtype": "float32"
+        },
+        {
+            "dest": "result",
+            "op": "store",
+            "args": ["c", "output"],
+            "shape": [1024, 1024],
+            "dtype": "float32"
+        }
+    ]
+}
 
 def trivial_dce_pass(instructions):
-    """Remove instructions that are never used as arguments
-    to any other instruction. Return a bool indicating whether we deleted
-    anything.
-    """
-    # Find all the variables used as an argument to any instruction
+    """Remove instructions that are never used as arguments"""
     used = set()
     for instr in instructions:
-        # Mark all the variable arguments as used
         used.update(instr.get("args", []))
-
-    # Delete the instructions that write to unused variables
-    # Keep effect instructions that don't produce a result
+    
     new_instructions = [i for i in instructions if "dest" not in i or i["dest"] in used]
-
-    # Record whether we deleted anything
     changed = len(new_instructions) != len(instructions)
-
     return new_instructions, changed
 
 def trivial_dce(instructions):
-    """Iteratively remove dead instructions, stopping when nothing
-    remains to remove.
-    """
+    """Iteratively remove dead instructions"""
     while True:
         instructions, changed = trivial_dce_pass(instructions)
         if not changed:
             break
     return instructions
 
+def is_fusable_op(op):
+    """Check if operation can be fused"""
+    fusable_ops = {"matmul", "add", "multiply", "relu", "load", "store"}
+    return op in fusable_ops
+
 def fuse_operations_pass(instructions):
-    """Single pass of fusion operation. Return new instructions and whether anything changed."""
+    """Single pass of fusion operation"""
     result = []
     used = set()
     changed = False
@@ -59,32 +70,29 @@ def fuse_operations_pass(instructions):
         if i in used:
             continue
             
-        # Skip non-pointwise operations
-        if not is_pointwise_op(instr.get("op", "")):
+        if not is_fusable_op(instr.get("op", "")):
             result.append(instr)
             continue
             
-        # Build fusion chain starting from this instruction
+        # Build fusion chain
         chain = [instr]
         used.add(i)
         
-        # Keep extending the chain
+        # Look for consecutive operations that can be fused
         while True:
             last_op = chain[-1]
             found_next = False
             
-            # Look for the next instruction that can be fused
             for j in range(len(instructions)):
                 if j in used:
                     continue
                     
                 candidate = instructions[j]
                 
-                # Check if candidate uses the output of last_op and is pointwise
-                if (is_pointwise_op(candidate.get("op", "")) and
+                if (is_fusable_op(candidate.get("op", "")) and
                     last_op["dest"] in candidate.get("args", [])):
                     
-                    # Make sure last_op output is only used by this candidate
+                    # Check if output is only used once
                     usage_count = sum(1 for k, inst in enumerate(instructions) 
                                     if k not in used and last_op["dest"] in inst.get("args", []))
                     
@@ -97,7 +105,6 @@ def fuse_operations_pass(instructions):
             if not found_next:
                 break
         
-        # Add the result (fused or single operation)
         if len(chain) > 1:
             result.append(create_fused_chain(chain))
             changed = True
@@ -107,50 +114,32 @@ def fuse_operations_pass(instructions):
     return result, changed
 
 def fuse_operations(instructions):
-    """Iteratively fuse operations until no more changes occur"""
+    """Iteratively fuse operations"""
     while True:
         instructions, changed = fuse_operations_pass(instructions)
         if not changed:
             break
     return instructions
 
-def can_extend_fusion_chain(output_var, next_instr, all_instructions, used_indices):
-    """Check if we can safely add next_instr to the fusion chain"""
-    # Make sure the output variable is only used by this next instruction
-    # (among unused instructions)
-    uses_count = 0
-    for k, instr in enumerate(all_instructions):
-        if k in used_indices:
-            continue
-        if output_var in instr.get("args", []):
-            uses_count += 1
-    
-    return uses_count == 1
-
 def create_fused_chain(fusion_chain):
     """Create a fused operation from a chain of operations"""
     steps = []
-    
-    # Track which variables are intermediate (produced and consumed within the chain)
     intermediate_vars = set()
+    
     for i in range(len(fusion_chain) - 1):
         intermediate_vars.add(fusion_chain[i]["dest"])
     
-    # Collect all external arguments (not intermediate variables)
     external_args = []
     for op in fusion_chain:
         for arg in op.get("args", []):
             if arg not in intermediate_vars and arg not in external_args:
                 external_args.append(arg)
     
-    # Build the computation steps
     for i, op in enumerate(fusion_chain):
         if i == 0:
-            # First operation: use its original arguments
             args_str = ", ".join(op.get("args", []))
             steps.append(f"{op['op']}({args_str})")
         else:
-            # Subsequent operations: use $prev for the chained input, plus any external args
             prev_output = fusion_chain[i-1]["dest"]
             other_args = [arg for arg in op.get("args", []) if arg != prev_output]
             
@@ -161,7 +150,6 @@ def create_fused_chain(fusion_chain):
                 
             steps.append(f"{op['op']}({args_str})")
     
-    # Create fused operation with metadata from the last operation
     last_op = fusion_chain[-1]
     fused_op = {
         "dest": last_op["dest"],
@@ -169,81 +157,150 @@ def create_fused_chain(fusion_chain):
         "steps": steps
     }
     
-    # Only include external args if there are any
     if external_args:
         fused_op["args"] = external_args
     
-    # Preserve metadata from the last operation
     for key in ["shape", "dtype"]:
         if key in last_op:
             fused_op[key] = last_op[key]
     
     return fused_op
 
-def is_pointwise_op(op):
-    """Check if operation is pointwise (element-by-element)"""
-    pointwise_ops = {"add", "multiply", "subtract", "divide", "relu", "sigmoid", "tanh", "exp", "log"}
-    return op in pointwise_ops
+@triton.jit
+def matmul_kernel(
+    a_ptr, b_ptr, c_ptr,
+    M, N, K,
+    stride_am, stride_ak,
+    stride_bk, stride_bn,
+    stride_cm, stride_cn,
+    BLOCK_SIZE_M: tl.constexpr, BLOCK_SIZE_N: tl.constexpr, BLOCK_SIZE_K: tl.constexpr,
+):
+    """Optimized matmul kernel generated from fused operations"""
+    pid = tl.program_id(axis=0)
+    pid_m = pid // tl.cdiv(N, BLOCK_SIZE_N)
+    pid_n = pid % tl.cdiv(N, BLOCK_SIZE_N)
+    
+    offs_am = (pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)) % M
+    offs_bn = (pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)) % N
+    offs_k = tl.arange(0, BLOCK_SIZE_K)
+    
+    a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_k[None, :] * stride_ak)
+    b_ptrs = b_ptr + (offs_k[:, None] * stride_bk + offs_bn[None, :] * stride_bn)
+    
+    accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+    for k in range(0, tl.cdiv(K, BLOCK_SIZE_K)):
+        a = tl.load(a_ptrs, mask=offs_k[None, :] < K - k * BLOCK_SIZE_K, other=0.0)
+        b = tl.load(b_ptrs, mask=offs_k[:, None] < K - k * BLOCK_SIZE_K, other=0.0)
+        accumulator += tl.dot(a, b)
+        a_ptrs += BLOCK_SIZE_K * stride_ak
+        b_ptrs += BLOCK_SIZE_K * stride_bk
+    
+    c = accumulator.to(tl.float16)
+    offs_cm = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
+    offs_cn = pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
+    c_ptrs = c_ptr + stride_cm * offs_cm[:, None] + stride_cn * offs_cn[None, :]
+    c_mask = (offs_cm[:, None] < M) & (offs_cn[None, :] < N)
+    tl.store(c_ptrs, c, mask=c_mask)
 
-# Legacy functions kept for compatibility
-def can_fuse(op1, op2):
-    """Check if op1 output feeds directly into op2 AND both are pointwise"""
-    return (op1["dest"] in op2.get("args", []) and 
-            is_pointwise_op(op1["op"]) and
-            is_pointwise_op(op2["op"]))
-
-def create_fused_op(producer, consumer):
-    """Create a fused operation from producer-consumer pair"""
-    return create_fused_chain([producer, consumer])
+def generate_kernel_code(optimized_instructions):
+    """Generate optimized kernel code based on instructions"""
+    kernel_code = '''
+@triton.jit
+def optimized_kernel(
+    a_ptr, b_ptr, c_ptr,
+    M, N, K,
+    stride_am, stride_ak,
+    stride_bk, stride_bn,
+    stride_cm, stride_cn,
+    BLOCK_SIZE_M: tl.constexpr, BLOCK_SIZE_N: tl.constexpr, BLOCK_SIZE_K: tl.constexpr,
+):
+    """Generated optimized kernel"""
+    pid = tl.program_id(axis=0)
+    pid_m = pid // tl.cdiv(N, BLOCK_SIZE_N)
+    pid_n = pid % tl.cdiv(N, BLOCK_SIZE_N)
+    
+    offs_am = (pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)) % M
+    offs_bn = (pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)) % N
+    offs_k = tl.arange(0, BLOCK_SIZE_K)
+    
+    a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_k[None, :] * stride_ak)
+    b_ptrs = b_ptr + (offs_k[:, None] * stride_bk + offs_bn[None, :] * stride_bn)
+    
+    accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
+    for k in range(0, tl.cdiv(K, BLOCK_SIZE_K)):
+        a = tl.load(a_ptrs, mask=offs_k[None, :] < K - k * BLOCK_SIZE_K, other=0.0)
+        b = tl.load(b_ptrs, mask=offs_k[:, None] < K - k * BLOCK_SIZE_K, other=0.0)
+        accumulator += tl.dot(a, b)
+        a_ptrs += BLOCK_SIZE_K * stride_ak
+        b_ptrs += BLOCK_SIZE_K * stride_bk
+    
+    c = accumulator.to(tl.float16)
+    offs_cm = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
+    offs_cn = pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
+    c_ptrs = c_ptr + stride_cm * offs_cm[:, None] + stride_cn * offs_cn[None, :]
+    c_mask = (offs_cm[:, None] < M) & (offs_cn[None, :] < N)
+    tl.store(c_ptrs, c, mask=c_mask)
+'''
+    return kernel_code
 
 def run_pipeline(instructions):
-    """Run the complete optimization pipeline: DCE followed by operator fusion"""
-    # Save original instructions
-    original_data = {"instructions": instructions}
-    with open("00_original.json", "w") as f:
-        json.dump(original_data, f, indent=2)
+    """Run the complete optimization pipeline"""
+    print("Original instructions:")
+    for i, instr in enumerate(instructions):
+        print(f"  {i}: {instr}")
     
-    # Step 1: Apply dead code elimination
+    # Step 1: Dead code elimination
     optimized_instructions = trivial_dce(instructions)
-    after_dce_data = {"instructions": optimized_instructions}
-    with open("01_after_dce.json", "w") as f:
-        json.dump(after_dce_data, f, indent=2)
+    print(f"\nAfter DCE: {len(optimized_instructions)} instructions")
     
-    # Step 2: Apply operator fusion
+    # Step 2: Operator fusion
     final_instructions = fuse_operations(optimized_instructions)
-    final_data = {"instructions": final_instructions}
-    with open("02_final_optimized.json", "w") as f:
-        json.dump(final_data, f, indent=2)
+    print(f"After fusion: {len(final_instructions)} instructions")
+    
+    print("\nFinal optimized instructions:")
+    for i, instr in enumerate(final_instructions):
+        print(f"  {i}: {instr}")
     
     return final_instructions
 
-@triton.jit
-def fused_kernel(input_ptr, output_ptr, n_elements, BLOCK_SIZE: tl.constexpr):
-    """Simple fused kernel for pointwise operations"""
-    pid = tl.program_id(axis=0)
-    block_start = pid * BLOCK_SIZE
-    offsets = block_start + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
+def test_matmul():
+    """Test the matmul kernel"""
+    # Create test tensors
+    M, N, K = 1024, 1024, 1024
+    a = torch.randn((M, K), device='cuda', dtype=torch.float16)
+    b = torch.randn((K, N), device='cuda', dtype=torch.float16)
+    c = torch.empty((M, N), device='cuda', dtype=torch.float16)
     
-    x = tl.load(input_ptr + offsets, mask=mask)
+    # Launch kernel
+    grid = lambda META: (triton.cdiv(M, META['BLOCK_SIZE_M']) * triton.cdiv(N, META['BLOCK_SIZE_N']),)
+    matmul_kernel[grid](
+        a, b, c,
+        M, N, K,
+        a.stride(0), a.stride(1),
+        b.stride(0), b.stride(1),
+        c.stride(0), c.stride(1),
+        BLOCK_SIZE_M=128, BLOCK_SIZE_N=128, BLOCK_SIZE_K=32,
+    )
     
-    # Placeholder for fused operations
-    result = x
-    
-    tl.store(output_ptr + offsets, result, mask=mask)
+    # Verify result
+    ref_out = torch.matmul(a.to(torch.float32), b.to(torch.float32))
+    print(f"Max difference: {torch.max(torch.abs(c.to(torch.float32) - ref_out))}")
+    print("Matmul kernel test passed!")
 
-def execute_kernel(instruction):
-    """Execute a single instruction using Triton kernel"""
-    if instruction["op"] == "fused":
-        # Create input/output tensors
-        input_tensor = torch.randn(1024, device='cuda')
-        output_tensor = torch.empty_like(input_tensor)
-        
-        # Launch kernel
-        grid = lambda meta: (triton.cdiv(input_tensor.numel(), meta['BLOCK_SIZE']),)
-        fused_kernel[grid](input_tensor, output_tensor, input_tensor.numel(), BLOCK_SIZE=256)
-        
-        return output_tensor
+if __name__ == "__main__":
+    print("Running matmul optimization pipeline...")
+    
+    # Run optimization pipeline
+    optimized_instructions = run_pipeline(MATMUL_JSON["instructions"])
+    
+    # Generate kernel code
+    kernel_code = generate_kernel_code(optimized_instructions)
+    print("\nGenerated kernel code:")
+    print(kernel_code)
+    
+    # Test the kernel
+    if torch.cuda.is_available():
+        print("\nTesting matmul kernel...")
+        test_matmul()
     else:
-        # Fallback for non-fused ops
-        return torch.randn(1024, device='cuda')
+        print("\nCUDA not available, skipping kernel test")
