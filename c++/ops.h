@@ -4,7 +4,6 @@
 #include <vector>
 #include <any>
 #include <string>
-#include <format>
 
 #include "types.h"
 

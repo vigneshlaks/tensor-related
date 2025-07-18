@@ -9,4 +9,4 @@ add_executable(tensor
     ops.cpp 
     types.cpp
     passes.cpp
-)
+)a

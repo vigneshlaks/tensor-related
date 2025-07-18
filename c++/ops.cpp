@@ -2,13 +2,12 @@
 #include <sstream>
 #include <format>
 
-bool MatMulOp::verify(){
+bool MatMulOp::verify() {
     if (lhs.dimension.size() == 1 || rhs.dimension.size() == 1){
         return false;
     }
 
     // TODO: check output
-
     return lhs.dimension[lhs.dimension.size() - 1] == rhs.dimension[rhs.dimension.size() - 2];
 };
 
