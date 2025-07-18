@@ -28,7 +28,7 @@ def is_fusable_op(op:str) -> bool:
 
 def create_fused_op(chain: list[Any]) -> dict:
     # initial input are the new arguments
-    args = [chain[0]["args"]]
+    args = [arg for arg in chain[0]["args"]]
     dests = []
     op = []
     
@@ -42,7 +42,7 @@ def create_fused_op(chain: list[Any]) -> dict:
     # concat the names
     fused_op["dest"] = f"__".join(dests)
     fused_op["args"] = args
-    fused_op["op"] = f"fused__{"__".join(op)}"
+    fused_op["op"] = f"fused__{'__'.join(op)}"
 
     return fused_op
 
@@ -53,9 +53,8 @@ def fuse_operations(instructions):
         if instr["op"] in FUSABLE_OPS:
             curr_chain.append(instr)
         else:
-            curr_args = instr["args"] if "args" in instr else []
-            
             if curr_chain != []:
+                curr_args = instr["args"] if "args" in instr else []
                 new_args = []
                 fused_op = create_fused_op(curr_chain)
                 curr_chain_dests = [op['dest'] for op in curr_chain]
@@ -87,11 +86,9 @@ def run_pipeline(instructions):
     for i, instr in enumerate(instructions):
         print(f"  {i}: {instr}")
     
-    # Step 1: Dead code elimination
     optimized_instructions = trivial_dce(instructions)
     print(f"\nAfter DCE: {len(optimized_instructions)} instructions")
     
-    # Step 2: Operator fusion
     final_instructions = fuse_operations(optimized_instructions)
     print(f"After fusion: {len(final_instructions)} instructions")
     
@@ -102,16 +99,12 @@ def run_pipeline(instructions):
     return final_instructions
 
 if __name__ == "__main__":
-    print("Running matmul optimization pipeline...")
-    with open('1_layer_nn_forward.json', 'r') as file:
+    print("Running high level optimization pipeline...")
+    with open('og_json.json', 'r') as file:
         data = json.load(file)
-    instrs = run_pipeline(data["functions"][0]["instrs"])
-    print()
 
-    # for instr in data["functions"][0]["instrs"]:
-    #     print(instr)
+    instrs = run_pipeline(data["functions"][0]["instrs"])
     
-    # Run optimization pipelinea
-    #optimized_instructions = run_pipeline(MATMUL_JSON["instructions"])
+    with open('hlo_op.json', 'w') as f:
+        json.dump(instrs, f, indent=2)
     
-    print("\nOptimization pipeline completed!") 

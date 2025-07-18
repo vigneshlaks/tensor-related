@@ -1,0 +1,58 @@
+{
+  "functions": [
+    {
+      "name": "main",
+      "instrs": [
+        {
+          "dest": "inputs",
+          "op": "const",
+          "value": [1, 2]
+        },
+        {
+          "dest": "weights",
+          "op": "const",
+          "value": [[1, 2], [3, 4]]
+        },
+        {
+          "dest": "unused_var1",
+          "op": "const",
+          "value": [5, 6]
+        },
+        {
+          "dest": "unused_var2",
+          "op": "const",
+          "value": [[7, 8], [9, 10]]
+        },
+        {
+          "dest": "pre_activation",
+          "op": "matmul",
+          "args": ["inputs", "weights"]
+        },
+        {
+          "dest": "dead_computation",
+          "op": "matmul",
+          "args": ["unused_var1", "unused_var2"]
+        },
+        {
+          "dest": "another_unused",
+          "op": "relu",
+          "args": ["dead_computation"]
+        },
+        {
+          "dest": "y_hat",
+          "op": "relu",
+          "args": ["pre_activation"]
+        },
+        {
+          "dest": "final_unused",
+          "op": "add",
+          "args": ["unused_var1", "inputs"]
+        },
+        {
+          "op": "print",
+          "args": ["y_hat"]
+        }
+      ]
+    }
+  ]
+}

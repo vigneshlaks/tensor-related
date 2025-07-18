@@ -1,0 +1,38 @@
+[
+  {
+    "dest": "inputs",
+    "op": "const",
+    "value": [
+      1,
+      2
+    ]
+  },
+  {
+    "dest": "weights",
+    "op": "const",
+    "value": [
+      [
+        1,
+        2
+      ],
+      [
+        3,
+        4
+      ]
+    ]
+  },
+  {
+    "dest": "pre_activation__y_hat",
+    "args": [
+      "inputs",
+      "weights"
+    ],
+    "op": "fused__matmul__relu"
+  },
+  {
+    "op": "print",
+    "args": [
+      "pre_activation__y_hat"
+    ]
+  }
+]
