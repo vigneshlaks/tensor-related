@@ -4,7 +4,6 @@ import torch
 from dotenv import load_dotenv
 import os
 
-
 class KernelExecutor:
     def __init__(self):
         self.kernels = {
@@ -49,14 +48,12 @@ def forward(instrs):
 
 if __name__ == "__main__":
     load_dotenv()
-    ir_loc = os.getenv('ir_loc')
-
-    with open(f"{ir_loc}/hlo_op.json", "r") as ir:
+    autograd_loc = os.getenv('autograd_loc')
+    with open(f"{autograd_loc}/nn.json", "r") as ir:
         instrs = json.load(ir)
-
-    forward_dir = forward(instrs)
-
-    with open(f"{ir_loc}/llo_op.json", "w") as new_ir:
-        json.dump(forward_dir, new_ir)
+    print(instrs)
+    # forward_dir = forward(instrs)
+    # with open(f"{autograd_loc}/llo_op.json", "w") as new_ir:
+    #     json.dump(forward_dir, new_ir)
 
 

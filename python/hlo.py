@@ -100,11 +100,11 @@ def run_pipeline(instructions):
 
 if __name__ == "__main__":
     print("Running high level optimization pipeline...")
-    with open('og_json.json', 'r') as file:
+    with open('./irs/pre_op.json', 'r') as file:
         data = json.load(file)
-
+        
     instrs = run_pipeline(data["functions"][0]["instrs"])
     
-    with open('hlo_op.json', 'w') as f:
+    with open('./irs/hlo_op.json', 'w') as f:
         json.dump(instrs, f, indent=2)
     

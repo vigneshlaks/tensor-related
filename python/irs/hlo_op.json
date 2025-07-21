@@ -1,6 +1,6 @@
 [
   {
-    "dest": "inputs",
+    "var_name": "inputs",
     "op": "const",
     "value": [
       1,
@@ -8,7 +8,7 @@
     ]
   },
   {
-    "dest": "weights",
+    "var_name": "weights",
     "op": "const",
     "value": [
       [
@@ -22,7 +22,7 @@
     ]
   },
   {
-    "dest": "pre_activation__y_hat",
+    "var_name": "pre_activation__y_hat",
     "args": [
       "inputs",
       "weights"
@@ -30,7 +30,7 @@
     "op": "fused__matmul__relu"
   },
   {
-    "op": "print",
+    "var_name": "print",
     "args": [
       "pre_activation__y_hat"
     ]

@@ -1,0 +1,33 @@
+{
+  "functions": [
+    {
+      "name": "main",
+      "instrs": [
+        {
+          "dest": "inputs",
+          "op": "const",
+          "value": [1, 2]
+        },
+        {
+          "dest": "weights",
+          "op": "const",
+          "value": [[1, 2], [3, 4]]
+        },
+        {
+          "dest": "pre_activation",
+          "op": "matmul",
+          "args": ["inputs", "weights"]
+        },
+        {
+          "dest": "y_hat",
+          "op": "relu",
+          "args": ["pre_activation"]
+        },
+        {
+          "op": "print",
+          "args": ["y_hat"]
+        }
+      ]
+    }
+  ]
+}
