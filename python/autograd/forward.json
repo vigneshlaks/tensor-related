@@ -1,0 +1,31 @@
+[
+   {
+      "var_name": "input",
+      "op": "const",
+      "value": [
+         1,
+         2
+      ]
+   },
+   {
+      "var_name": "w1",
+      "op": "const",
+      "value": [
+         [
+            1,
+            2
+         ],
+         [
+            3,
+            4
+         ]
+      ]
+   },
+   {
+      "var_name": "pre_activated",
+      "op": "matmul",
+      "args": [
+         "input",
+         "w1"
+      ],
+      "output": 
