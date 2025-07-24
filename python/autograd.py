@@ -49,7 +49,7 @@ def forward(instrs):
             # place in json itself  to reference during backward
             instr["output"] = res
         elif instr["op"] == "const":
-            values[instr["var_name"]] = instr["value"]
+            values[instr["var_name"]] = torch.tensor(instr["value"])
         else:
             raise ValueError(f"{instr['op']} is not a supported Operation")
     return instrs
@@ -59,32 +59,26 @@ def iterative_backprop(instrs, ground_truth):
         if instrs[i]["op"] == "const":
             continue
         if instrs[i]["op"] == "mse_loss":
-            instrs[i]["backprop"] = ground_truth - instrs[i]["output"]
+            # pred - ground_truth for mse
+            instrs[i]["error"] = instrs[i]["args"][0] - ground_truth
         elif instrs[i]["op"] == "relu":
-            # if in bounds and next is loss node
-            if i+1 < len(instrs):
-                if instrs[i+1]["op"] == "mse_loss":
-                    # send back backprop from loss node
-                    instrs[i]["backprop"] = instrs[i+1]["backprop"]
-                else:
-                    # assume matmul (preactivation of following layer) in front
-                    matmul_instr = instrs[i+1]
-                    for arg in matmul_instr["args"]:
-                        # find matrix op
-                        if arg.dim() == 2:
-                            # send back through the weight matrix to where we are now
-                            # arg is the computed tensor btw
-                            instrs[i]["backprop"] = arg.T * matmul_instr["backprop"]
+            # apply deriv to send back w mask
+            input = instrs[i]["args"][0]
+            instrs[i]["error"] = instrs[i+1]["error"] * (input > 0).int()
         elif instrs[i]["op"] == "matmul":
-            relu_instr = instrs[i+1]
-            deriv = instrs[i]["output"] * (instrs[i]["output"] > 0).int()
-            instrs[i]["backprop"] = relu_instr["backprop"] * deriv
+            # input or prev nonlinearity
+            input = instrs[i]["args"][0]
+            w = instrs[i]["args"][1]
+            delta = instrs[i+1]["error"]
+            # grad acc
+            instrs[i]["grad"] = delta.unsqueeze(1) @ input.unsqueeze(0)
+            # also send back error
+            instrs[i]["error"] = w.T @ delta
         else:
             raise ValueError("Unsupported Op")
 
 def backward(instrs):
-    # assume arb. output
-    #layer_backprop(instrs, 0, torch.tensor([5,2]))
+    # random y
     return iterative_backprop(instrs, torch.tensor([5,2]))
 
 def clean_output(instrs):
