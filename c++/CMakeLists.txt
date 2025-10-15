@@ -1,12 +1,14 @@
 cmake_minimum_required(VERSION 3.10)
+
+set(CMAKE_CXX_COMPILER /opt/homebrew/bin/clang++)
 project(tensor)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(tensor 
-    test.cpp 
-    ops.cpp 
+add_executable(tensor
+    test.cpp
+    ops.cpp
     types.cpp
     passes.cpp
-)a
+)

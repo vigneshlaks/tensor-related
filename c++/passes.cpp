@@ -1,5 +1,6 @@
 #include "passes.h"
 #include <iostream>
+#include <algorithm>
 
 bool MatMulReluFusion::matchRewrite(Op* op, std::vector<Op*>& context, size_t index) {
   if (auto matmul = dynamic_cast<MatMulOp*>(op)) {
