@@ -43,7 +43,7 @@ def forward(instrs):
             res = exec.launch(instr["op"], inputs)
             # save for rest of forward
             values[instr["var_name"]] = res
-            # place in json itself  to reference during backward
+            # place in json itself to reference during backward
             instr["output"] = res
         elif instr["op"] == "const":
             values[instr["var_name"]] = np.array(instr["value"])
@@ -72,30 +72,37 @@ def iterative_backprop(instrs, ground_truth):
             # also send back error
             instrs[i]["error"] = w.T @ delta
         else:
-            raise ValueError("Unsupported Op")
+            raise ValueError(f"{instr['op']} is not a supported Operation")
+
+def descent_step(instrs, lr):
+    for instr in instrs:
+        if "grad" in instr:
+            # matmul (the weights) is the only parameter to update right now
+            if instr["op"] == "matmul":
+                instr["args"][1] -= instr["grad"].T * lr
+            else:
+                raise ValueError(f"{instr['op']} is not a supported Operation")
 
 def backward(instrs):
     # random y
     return iterative_backprop(instrs, np.array([5, 2]))
-
-def clean_output(instrs):
-    for instr in instrs:
-        if "output" in instr:
-            print(instr)
-            instr["output"] = instr["output"].tolist()
 
 if __name__ == "__main__":
     # get instrs
     with open("./autograd/1-layer.json", "r") as ir:
         instrs = json.load(ir)
 
-    forward_dir = forward(instrs)
+    forward(instrs)
+    
     for instr in instrs:
         print(instr)
     
     print()
 
-    back = backward(forward_dir)
+    backward(instrs)
 
     for instr in instrs:
         print(instr)
+    
+    # learning rate of 0.01
+    descent_step(instrs, 0.01)
