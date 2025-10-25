@@ -3,9 +3,10 @@ import numpy as np
 
 GROUND_TRUTH = np.array([5, 2])
 
-# store the computations we need to perform
+
 class Executor:
     def __init__(self):
+        # store the computations to perform
         self.computations = {
             "relu": self.relu_exec,
             "matmul": self.matmul_exec,
@@ -27,7 +28,7 @@ class Executor:
     
     def launch(self, op, args):
         # probably unideal wtv for now
-        args = [arg if isinstance(arg, np.ndarray) else np.array(arg) for arg in args]
+        args = [arg if isinstance(arg, np.ndarray) else np.array(arg, dtype=np.float64) for arg in args]
         return self.computations[op](*args)
 
 def forward(instrs):
@@ -62,6 +63,7 @@ def iterative_backprop(instrs, ground_truth):
             # apply deriv to send back w mask
             input = instrs[i]["args"][0]
             instrs[i]["error"] = instrs[i+1]["error"] * (input > 0).astype(int)
+        # matmul in need of tweaking
         elif instrs[i]["op"] == "matmul":
             # input or prev nonlinearity
             input = instrs[i]["args"][0]
@@ -106,3 +108,6 @@ if __name__ == "__main__":
     
     # learning rate of 0.01
     descent_step(instrs, 0.01)
+    
+    for instr in instrs:
+        print(instr)
