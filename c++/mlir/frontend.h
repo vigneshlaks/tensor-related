@@ -8,8 +8,33 @@
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
-class IRBuilder {
+// IR Representation
+struct Node {
+    std::string id;
+    std::string opType;
+    std::vector<std::string> inputIds;
+    Tensor* output;
+    Op* operation;
+
+    Node* prev;
+    Node* next;
+};
+
+struct ComputeGraph {
+    // just store the head for inference
+    Node* head;
+    std::map<std::string, Node*> nodeMap;
+};
+
+struct ComputeGraph {
+    // just store the head for inference
+    Node* head;
+    std::map<std::string, Node*> nodeMap;
+};
+
+class IR {
     std::vector<std::pair<Tensor, Op>> parseIR(json inputIR);
+    void printComputeGraph(ComputeGraph cgraph);
 };
 
 #endif

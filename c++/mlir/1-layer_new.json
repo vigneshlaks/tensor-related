@@ -1,28 +1,28 @@
 [
   {
-    "var_name": "input",
+    "id": "input",
     "op": "const",
     "value": [1, 2],
     "dim": [2]
   },
   {
-    "var_name": "w1",
+    "id": "w1",
     "op": "const",
     "value": [1, 2, 3, 4],
     "dim": [2, 2]
   },
   {
-    "var_name": "pre_activated",
+    "id": "pre_activated",
     "op": "matmul",
     "args": ["input", "w1"]
   },
   {
-    "var_name": "y_hat",
+    "id": "y_hat",
     "op": "relu",
     "args": ["pre_activated"]
   },
   {
-    "var_name": "mse",
+    "id": "mse",
     "op": "mse_loss",
     "args": ["y_hat"]
   }
