@@ -16,9 +16,10 @@ public:
 
 class MatMulOp : public Op {
 public:
-    Tensor lhs, rhs;
-    Tensor output;
-    MatMulOp(const Tensor& left, const Tensor& right, const Tensor& output) 
+    Tensor* lhs;
+    Tensor* rhs;
+    Tensor* output;
+    MatMulOp(Tensor* left, Tensor* right, Tensor* output) 
         : lhs(left), rhs(right), output(output) {}
 
     bool verify() override;
@@ -27,9 +28,9 @@ public:
 
 class ReluOp : public Op {
 public:
-    Tensor input;
-    Tensor output;
-    ReluOp(const Tensor& i, const Tensor& o) : input(i), output(o) {}
+    Tensor* input;
+    Tensor* output;
+    ReluOp(Tensor* i, Tensor* o) : input(i), output(o) {}
 
     bool verify() override;
     std::string print() override;
@@ -37,10 +38,11 @@ public:
 
 class MatMulReluOp : public Op {
 public:
-    Tensor lhs, rhs;
-    Tensor output;
-    MatMulReluOp(const Tensor& left, const Tensor& right, const Tensor& output) 
-        : lhs(left), rhs(right), output(output) {}
+    Tensor* lhs;
+    Tensor* rhs;
+    Tensor* output;
+    MatMulReluOp(Tensor* lhs, Tensor* rhs, Tensor* output) 
+        : lhs(lhs), rhs(rhs), output(output) {}
 
     bool verify() override;
     std::string print() override;
@@ -48,10 +50,10 @@ public:
 
 class MSEOp : public Op {
 public:
-    Tensor input;
-    Tensor output;
-    MSEOp(const Tensor& i, const Tensor& o) : input(i), output(o) {}
-    
+    Tensor* input;
+    Tensor* output;
+    MSEOp(Tensor* i, Tensor* o) : input(i), output(o) {}
+
     bool verify() override;
     std::string print() override;
 };
