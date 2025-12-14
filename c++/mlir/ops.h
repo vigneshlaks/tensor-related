@@ -46,4 +46,14 @@ public:
     std::string print() override;
 };
 
+class MSEOp : public Op {
+public:
+    Tensor input;
+    Tensor output;
+    MSEOp(const Tensor& i, const Tensor& o) : input(i), output(o) {}
+    
+    bool verify() override;
+    std::string print() override;
+};
+
 #endif

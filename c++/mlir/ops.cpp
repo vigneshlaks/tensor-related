@@ -7,7 +7,6 @@ bool MatMulOp::verify() {
         return false;
     }
 
-    // TODO: check output
     return lhs.dimension[lhs.dimension.size() - 1] == rhs.dimension[rhs.dimension.size() - 2];
 };
 
@@ -15,7 +14,6 @@ std::string MatMulOp::print() {
     return std::format("MatMul({}, {} -> {})", lhs.dimension.size(), 
                       rhs.dimension.size(), output.dimension.size());
 };
-
 
 bool ReluOp::verify() {
     if (input.dimension.size() != output.dimension.size()) {
@@ -46,3 +44,12 @@ std::string MatMulReluOp::print() {
     return std::format("MatMulRelu({}, {} -> {})", lhs.dimension.size(), 
                       rhs.dimension.size(), output.dimension.size());
 };
+
+bool MSEOp::verify(){
+    return 
+};
+
+std::string MSEOp::print() {
+    return 
+};
+

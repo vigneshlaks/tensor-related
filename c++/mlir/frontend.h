@@ -1,15 +1,15 @@
+// go from json to ir for now
 #ifndef FRONTEND_H
 #define FRONTEND_H
 
-#include <string>
 #include "ops.h"
+#include "types.h"
 
-class SSABuilder {
-private:
-    int opNum = 0;
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
 
-public:
-    std::string buildOp (Op& op);
+class IRBuilder {
+    std::vector<std::pair<Tensor, Op>> parseIR(json inputIR);
 };
 
 #endif

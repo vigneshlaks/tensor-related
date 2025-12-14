@@ -2,9 +2,6 @@
 
 using json = nlohmann::json;
 
-// Local Value Numbering optimizations
-// These functions apply compiler optimizations to a single basic block
-
 // Eliminate redundant subexpressions through constant propagation
 std::vector<json> constant_folding(std::vector<json> block);
 
