@@ -1,10 +1,8 @@
 
 #include "frontend.h"
-#include <format>
 #include <map>
 
 // doubly linked list: https://docs.pytorch.org/docs/stable/fx.html
-// since I'm only worred about inference right now, maybe it makes more sense to make it a singly linked list instead
 ComputeGraph parseIR(json instrs) {
     Node* head = nullptr;
     
@@ -13,7 +11,6 @@ ComputeGraph parseIR(json instrs) {
     curr->prev = head;
     
     // for deleting nodes in O(1)
-    // maybe useful for other things as well
     std::map<std::string, Node*> nodeMap;
 
     for (json instr : instrs) {
@@ -51,8 +48,11 @@ ComputeGraph parseIR(json instrs) {
             // assumes 2 dimensions
             Tensor* output = new Tensor({input->dimension[0], input->dimension[1]});
             curr->output = output;
-            curr->operation = new ReluOp(input, output);
+            curr->operation = new MSEOp(input, output);
         }
+
+        // store in map 
+        nodeMap[instr["id"]] = curr;
         
         // assign prev pointer
         Node* next = new Node();

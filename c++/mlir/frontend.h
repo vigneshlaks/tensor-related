@@ -26,15 +26,7 @@ struct ComputeGraph {
     std::map<std::string, Node*> nodeMap;
 };
 
-struct ComputeGraph {
-    // just store the head for inference
-    Node* head;
-    std::map<std::string, Node*> nodeMap;
-};
-
-class IR {
-    std::vector<std::pair<Tensor, Op>> parseIR(json inputIR);
-    void printComputeGraph(ComputeGraph cgraph);
-};
+ComputeGraph parseIR(json inputIR);
+void printComputeGraph(ComputeGraph cgraph);
 
 #endif
