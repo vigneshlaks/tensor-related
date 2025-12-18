@@ -2,12 +2,12 @@
   {
     "var_name": "input",
     "op": "const",
-    "value": [1, 2]
+    "value": [1.0, 2.0]
   },
   {
     "var_name": "w1",
     "op": "const",
-    "value": [[1, 2], [3, 4]]
+    "value": [[1.0, 2.0], [3.0, 4.0]]
   },
   {
     "var_name": "pre_activated",

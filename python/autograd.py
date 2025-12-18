@@ -3,7 +3,6 @@ import numpy as np
 
 GROUND_TRUTH = np.array([5, 2])
 
-
 class Executor:
     def __init__(self):
         # store the computations to perform
@@ -39,13 +38,13 @@ def forward(instrs):
         if instr["op"] in exec.computations.keys():
             # get the computed result for our inputs
             inputs = [values[arg] for arg in instr["args"]]
-            # replace with computed vals for forward
-            instr["args"] = inputs
+            # execute the operation
             res = exec.launch(instr["op"], inputs)
             # save for rest of forward
             values[instr["var_name"]] = res
             # place in json itself to reference during backward
             instr["output"] = res
+            instr["input_values"] = inputs
         elif instr["op"] == "const":
             values[instr["var_name"]] = np.array(instr["value"])
         else:
@@ -58,56 +57,87 @@ def iterative_backprop(instrs, ground_truth):
             continue
         if instrs[i]["op"] == "mse_loss":
             # pred - ground_truth for mse
-            instrs[i]["error"] = instrs[i]["args"][0] - ground_truth
+            instrs[i]["error"] = 2 * (instrs[i]["input_values"][0] - ground_truth)
         elif instrs[i]["op"] == "relu":
             # apply deriv to send back w mask
-            input = instrs[i]["args"][0]
+            input = instrs[i]["input_values"][0]
             instrs[i]["error"] = instrs[i+1]["error"] * (input > 0).astype(int)
-        # matmul in need of tweaking
         elif instrs[i]["op"] == "matmul":
             # input or prev nonlinearity
-            input = instrs[i]["args"][0]
-            w = instrs[i]["args"][1]
+            input = instrs[i]["input_values"][0]
+            w = instrs[i]["input_values"][1]
             delta = instrs[i+1]["error"]
             # grad acc
-            instrs[i]["grad"] = np.outer(delta, input)
+            instrs[i]["grad"] = np.outer(input, delta)
             # also send back error
-            instrs[i]["error"] = w.T @ delta
+            instrs[i]["error"] = delta @ w.T
         else:
-            raise ValueError(f"{instr['op']} is not a supported Operation")
+            raise ValueError(f"{instrs[i]['op']} is not a supported Operation")
 
 def descent_step(instrs, lr):
+    # build a map of variable names to their const instructions
+    const_map = {}
+    for instr in instrs:
+        if instr["op"] == "const":
+            const_map[instr["var_name"]] = instr
+
     for instr in instrs:
         if "grad" in instr:
-            # matmul (the weights) is the only parameter to update right now
             if instr["op"] == "matmul":
-                instr["args"][1] -= instr["grad"].T * lr
+                # update the const value for the weight parameter
+                weight_var = instr["args"][1]
+                const_map[weight_var]["value"] = (np.array(const_map[weight_var]["value"]) - instr["grad"] * lr).tolist()
             else:
                 raise ValueError(f"{instr['op']} is not a supported Operation")
 
 def backward(instrs):
-    # random y
-    return iterative_backprop(instrs, np.array([5, 2]))
+    return iterative_backprop(instrs, GROUND_TRUTH)
+
+def numerical_gradient(json_path, epsilon=1e-5):
+    """Compute numerical gradient for verification"""
+    with open(json_path, "r") as f:
+        base_instrs = json.load(f)
+
+    weights_idx = next(i for i, instr in enumerate(base_instrs) if instr["var_name"] == "w1")
+    weights = np.array(base_instrs[weights_idx]["value"])
+    numerical_grad = np.zeros_like(weights)
+
+    for i in range(weights.shape[0]):
+        for j in range(weights.shape[1]):
+            with open(json_path, "r") as f:
+                instrs_plus = json.load(f)
+            instrs_plus[weights_idx]["value"][i][j] += epsilon
+            loss_plus = np.sum(forward(instrs_plus)[-1]["output"])
+
+            with open(json_path, "r") as f:
+                instrs_minus = json.load(f)
+            instrs_minus[weights_idx]["value"][i][j] -= epsilon
+            loss_minus = np.sum(forward(instrs_minus)[-1]["output"])
+
+            numerical_grad[i, j] = (loss_plus - loss_minus) / (2 * epsilon)
+
+    return numerical_grad
 
 if __name__ == "__main__":
-    # get instrs
-    with open("./autograd/1-layer.json", "r") as ir:
-        instrs = json.load(ir)
+    # Load instructions
+    with open("./autograd/1-layer.json", "r") as f:
+        instrs = json.load(f)
 
-    forward(instrs)
-    
-    for instr in instrs:
-        print(instr)
-    
-    print()
-
+    # Verify gradients
+    print("Verifying gradients...")
+    instrs = forward(instrs)
     backward(instrs)
 
-    for instr in instrs:
-        print(instr)
-    
-    # learning rate of 0.01
-    descent_step(instrs, 0.01)
-    
-    for instr in instrs:
-        print(instr)
+    matmul_idx = next(i for i, instr in enumerate(instrs) if instr["op"] == "matmul")
+    analytical_grad = instrs[matmul_idx]["grad"]
+    numerical_grad = numerical_gradient("./autograd/1-layer.json")
+
+    print(f"Analytical gradient:\n{analytical_grad}")
+    print(f"Numerical gradient:\n{numerical_grad}")
+    print(f"Max difference: {np.max(np.abs(analytical_grad - numerical_grad))}")
+
+    if np.allclose(analytical_grad, numerical_grad, rtol=1e-3, atol=1e-5):
+        print("✓ Gradients are correct!")
+    else:
+        print("✗ Gradients do not match!")
+        exit(1)
