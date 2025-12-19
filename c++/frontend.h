@@ -26,7 +26,7 @@ struct ComputeGraph {
     std::map<std::string, Node*> nodeMap;
 };
 
-ComputeGraph parseIR(json inputIR);
+ComputeGraph parseJSON(json inputIR);
 void printComputeGraph(ComputeGraph cgraph);
 
 #endif

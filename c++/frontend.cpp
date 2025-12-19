@@ -1,14 +1,17 @@
 
 #include "frontend.h"
 #include <map>
+#include <iostream>
 
-// doubly linked list: https://docs.pytorch.org/docs/stable/fx.html
-ComputeGraph parseIR(json instrs) {
+ComputeGraph parseJSON(json instrs) {
     Node* head = nullptr;
     
     // create start node
     Node* curr = new Node;
     curr->prev = head;
+    
+    // set to first node
+    head = curr;
     
     // for deleting nodes in O(1)
     std::map<std::string, Node*> nodeMap;
@@ -69,7 +72,33 @@ ComputeGraph parseIR(json instrs) {
     };
 }
 
-// TODO
 void printComputeGraph(ComputeGraph cGraph) {
-    return;
+    std::cout << "=== Compute Graph ===" << std::endl;
+    std::cout << "Total nodes: " << cGraph.nodeMap.size() << std::endl << std::endl;
+
+    Node* curr = cGraph.head;
+    int nodeIndex = 0;
+
+    while (curr != nullptr && curr->id != "") {
+        std::cout << "Node " << nodeIndex << ":" << std::endl;
+        std::cout << "  ID: " << curr->id << std::endl;
+        std::cout << "  Op Type: " << curr->opType << std::endl;
+
+        if (curr->output != nullptr) {
+            std::cout << "  Output Shape: [";
+            for (size_t i = 0; i < curr->output->dimension.size(); i++) {
+                std::cout << curr->output->dimension[i];
+                if (i < curr->output->dimension.size() - 1) {
+                    std::cout << ", ";
+                }
+            }
+            std::cout << "]" << std::endl;
+        }
+
+        std::cout << std::endl;
+        curr = curr->next;
+        nodeIndex++;
+    }
+
+    std::cout << "=====================" << std::endl;
 }

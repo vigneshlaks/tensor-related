@@ -12,7 +12,7 @@ Tensor::Tensor(std::vector<size_t> d, std::vector<float> s) : dimension(d), stor
 
 float Tensor::getValue(std::vector<size_t> index) {
     int flatIndex = 0;
-    
+
     for (int i = 0; i < dimension.size(); i++) {
         flatIndex += index[i] * stride[i];
     }
