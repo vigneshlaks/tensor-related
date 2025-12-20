@@ -8,13 +8,20 @@
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
+enum OpType {
+    Matmul,
+    Relu,
+    MatmulRelu,
+    MSE
+};
+
 // IR Representation
 struct Node {
     std::string id;
-    std::string opType;
+    OpType opType;
     std::vector<std::string> inputIds;
-    Tensor* output;
-    Op* operation;
+    std::shared_ptr<Tensor> output;
+    std::unique_ptr<Op> operation;
 
     Node* prev;
     Node* next;
@@ -26,6 +33,7 @@ struct ComputeGraph {
     std::map<std::string, Node*> nodeMap;
 };
 
+int parseBytecode();
 ComputeGraph parseJSON(json inputIR);
 void printComputeGraph(ComputeGraph cgraph);
 
