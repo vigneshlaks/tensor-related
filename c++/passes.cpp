@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <format> 
 
-int FusionPass::apply(ComputeGraph* graph) {
+int FusionPass::globalApply(ComputeGraph* graph) {
     int fusionCount = 0;
 
     if (!graph || !graph->head) {
@@ -91,7 +91,11 @@ void FusionPass::fuseNodes(ComputeGraph* graph, Node* first, Node* second) {
     }
 };
 
-int QuantizationPass::apply(ComputeGraph* graph, std::variant<int, float>) {
+int QuantizationPass::globalApply(ComputeGraph* graph) {
+    return 0;
+};
+
+int QuantizationPass::localApply(ComputeGraph* graph) {
     return 0;
 };
 
@@ -99,7 +103,20 @@ void PassManager::registerPass(Pass* pass) {
     passes.push_back(pass);
 };
 
-void PassManager::run() {
+// run global runs full optimization one by one
+void PassManager::runGlobal() {
+    for (Pass* pass : passes) {
+       pass->globalApply(computeGraph);
+    }
+};
+
+// map quantize to the tensor
+// map blah blah to blah blah
+
+// TODO run local will run the local optimizations for all the passes
+// one sequential pass instead of multiple
+// fusion collapses nodes so it's harder
+void PassManager::runLocal() {
     return;
 };
 

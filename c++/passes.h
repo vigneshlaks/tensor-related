@@ -11,36 +11,40 @@
 class Pass {
 public:
     virtual ~Pass() = default;
-    virtual int apply(ComputeGraph *graph) = 0;
+    virtual int globalApply(ComputeGraph* graph) = 0;
+    virtual int localApply(ComputeGraph* graph) = 0;
 };
 
-class FusionPass
-{
-public:
-    int apply(ComputeGraph *graph);
-
+class FusionPass : Pass {
 private:
     bool canFuse(Node *first, Node *second);
-
     void fuseNodes(ComputeGraph *graph, Node *first, Node *second);
+public:
+    // stick with global apply for now
+    int globalApply(ComputeGraph* graph) override;
+    int localApply(ComputeGraph* graph) override;
 };
 
-class QuantizationPass
-{
-    int apply(ComputeGraph *graph, std::variant<int, float>);
+class QuantizationPass : Pass {
+private:
+    std::variant<int, float> precision;
+public:
+    int globalApply(ComputeGraph* graph) override;
+    int localApply(ComputeGraph* graph) override;
 };
 
 class PassManager
 {
 private:
-    ComputeGraph computeGraph;
-    std::vector<Pass *> passes;
-
+    ComputeGraph* computeGraph;
+    std::vector<Pass*> passes;
 public:
-    PassManager(ComputeGraph cg, std::vector<Pass *> p) : computeGraph(cg), passes(p) {};
+    PassManager(ComputeGraph* cg, std::vector<Pass*> p) : computeGraph(cg), passes(p) {};
     void registerPass(Pass *pass);
 
-    void run();
+    void runLocal();
+    void runGlobal();
+    
 
     bool verify();
 };

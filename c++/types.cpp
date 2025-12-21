@@ -1,6 +1,4 @@
-// not in use right now
 #include "types.h"
-#include <iostream>
 
 Tensor::Tensor(std::vector<size_t> d) : dimension(d) {
     fillStride();

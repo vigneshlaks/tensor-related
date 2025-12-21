@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(mlir)
+project(ttc)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,7 +8,6 @@ find_package(nlohmann_json REQUIRED)
 
 set(CMAKE_C_COMPILER /opt/homebrew/opt/llvm/bin/clang)
 set(CMAKE_CXX_COMPILER /opt/homebrew/opt/llvm/bin/clang++)
-
 
 add_library(frontend frontend.cpp frontend.h)
 add_library(ops ops.cpp ops.h)

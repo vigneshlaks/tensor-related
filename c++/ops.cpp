@@ -1,5 +1,5 @@
 #include "ops.h"
-#include <sstream>
+#include <format>
 
 bool MatMulOp::verify() {
     if (lhs->dimension.size() == 1 || rhs->dimension.size() == 1){
@@ -10,10 +10,8 @@ bool MatMulOp::verify() {
 };
 
 std::string MatMulOp::print() {
-    std::ostringstream oss;
-    oss << "MatMul(" << lhs->dimension.size() << ", "
-        << rhs->dimension.size() << " -> " << output->dimension.size() << ")";
-    return oss.str();
+    return std::format("MatMul({}, {} -> {})",
+        lhs->dimension.size(), rhs->dimension.size(), output->dimension.size());
 };
 
 bool ReluOp::verify() {
@@ -32,10 +30,8 @@ bool ReluOp::verify() {
 };
 
 std::string ReluOp::print() {
-    std::ostringstream oss;
-    oss << "Relu(input, output -> " << input->dimension.size()
-        << " -> " << output->dimension.size() << ")";
-    return oss.str();
+    return std::format("Relu(input, output -> {} -> {})",
+        input->dimension.size(), output->dimension.size());
 };
 
 
@@ -45,10 +41,8 @@ bool MatMulReluOp::verify(){
 };
 
 std::string MatMulReluOp::print() {
-    std::ostringstream oss;
-    oss << "MatMulRelu(" << lhs->dimension.size() << ", "
-        << rhs->dimension.size() << " -> " << output->dimension.size() << ")";
-    return oss.str();
+    return std::format("MatMulRelu({}, {} -> {})",
+        lhs->dimension.size(), rhs->dimension.size(), output->dimension.size());
 };
 
 bool MSEOp::verify(){
@@ -67,9 +61,7 @@ bool MSEOp::verify(){
 };
 
 std::string MSEOp::print() {
-    std::ostringstream oss;
-    oss << "MSE(input, output -> " << input->dimension.size()
-        << " -> " << output->dimension.size() << ")";
-    return oss.str();
+    return std::format("MSE(input, output -> {} -> {})",
+        input->dimension.size(), output->dimension.size());
 };
 
