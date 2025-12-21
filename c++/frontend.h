@@ -19,7 +19,6 @@ enum OpType {
 struct Node {
     std::string id;
     OpType opType;
-    std::vector<std::string> inputIds;
     std::shared_ptr<Tensor> output;
     std::unique_ptr<Op> operation;
 

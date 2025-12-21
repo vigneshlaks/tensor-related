@@ -4,6 +4,11 @@
 #include <vector>
 #include <string>
 
+enum Precision {
+    Int8,
+    Float32
+};
+
 class Tensor {
 private:
     std::vector<float> storage = {};

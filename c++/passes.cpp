@@ -1,6 +1,7 @@
 #include "passes.h"
 #include <iostream>
 #include <algorithm>
+#include <format> 
 
 int FusionPass::apply(ComputeGraph* graph) {
     int fusionCount = 0;
@@ -29,73 +30,79 @@ int FusionPass::apply(ComputeGraph* graph) {
     }
 
     return fusionCount;
-}
+};
 
 bool FusionPass::canFuse(Node* first, Node* second) {
     if (!first || !second) {
         return false;
     }
 
-    if (first->opType == "matmul" && second->opType == "relu") {
-        if (second->inputIds.size() == 1 &&
-            second->inputIds[0] == first->id) {
-            return true;
-        }
+    if (first->opType == Matmul && second->opType == Relu) {
+        return true;
     }
-
-    
 
     return false;
-}
+};
 
 void FusionPass::fuseNodes(ComputeGraph* graph, Node* first, Node* second) {
-    // Create fused operation: MatMul + ReLU -> MatMulReLU
-    if (first->opType == "matmul" && second->opType == "relu") {
-        MatMulOp* matmulOp = dynamic_cast<MatMulOp*>(first->operation);
+    // first and second node
+    Node* newPrev = first->prev;
+    Node* newNext = second->next;
+    
+    // construct node
+    if (first->opType == Matmul && second->opType == Relu) {
+        Node* fusedNode = new Node();
+        
+        std::shared_ptr<Tensor> lhs = dynamic_cast<MatMulOp*>(first->operation.get())->lhs;
+        std::shared_ptr<Tensor> rhs = dynamic_cast<MatMulOp*>(first->operation.get())->rhs;
+        std::shared_ptr<Tensor> output = dynamic_cast<ReluOp*>(second->operation.get())->output;
+        std::string fusedId = std::format("{}_{}", first->id, second->id);
+        
+        fusedNode->output = output;
+        fusedNode->operation = std::make_unique<MatMulReluOp>(lhs, rhs, output);
+        fusedNode->opType= MatmulRelu;
+        fusedNode->id = fusedId;
 
-        if (matmulOp) {
-            // Create fused operation
-            // Use second's output tensor (ReLU's output) as the final output
-            MatMulReluOp* fusedOp = new MatMulReluOp(
-                matmulOp->lhs,
-                matmulOp->rhs,
-                second->output  // Use ReLU's output
-            );
-
-            // Update first node to be the fused node
-            first->operation = fusedOp;
-            first->opType = "matmul_relu";
-            first->output = second->output;
-            first->id = second->id;  // Take the output node's ID
-
-            // Remove second node from the linked list
-            first->next = second->next;
-            if (second->next != nullptr) {
-                second->next->prev = first;
-            }
-
-            // Update node map to remove old nodes and add fused node
-            graph->nodeMap.erase(second->id);
-            // The fused node keeps the second (output) node's ID
-            graph->nodeMap[first->id] = first;
-
-            // Clean up the old ReLU node
-            delete second->operation;
-            delete second;
-
-            std::cout << "Fused MatMul + ReLU -> MatMulReLU" << std::endl;
+        // rearrange pointers
+        if (newPrev != nullptr) {
+            newPrev->next = fusedNode;
+        } else {
+            // implies we're the new head
+            graph->head = fusedNode;
         }
+
+        if (newNext != nullptr) {
+            newNext->prev = fusedNode;
+        }
+        fusedNode->next = newNext;
+        fusedNode->prev = newPrev;
+
+        // delete old nodes
+        delete first;
+        delete second;
+
+        // add to map
+        graph->nodeMap[fusedNode->id] = fusedNode;
+        graph->nodeMap.erase(first->id);
+        graph->nodeMap.erase(second->id)
+        ;
+    } else {
+        throw std::invalid_argument("Unsupport Node Fusion");
     }
-}
+};
+
+int QuantizationPass::apply(ComputeGraph* graph, std::variant<int, float>) {
+    return 0;
+};
 
 void PassManager::registerPass(Pass* pass) {
     passes.push_back(pass);
 };
 
 void PassManager::run() {
-
+    return;
 };
 
 bool PassManager::verify() {
-
+    return false;
 };

@@ -21,7 +21,7 @@ ComputeGraph parseJSON(json instrs)
     head = curr;
 
     // for deleting nodes in O(1)
-    std::map<std::string, std::shared_ptr<Node>> nodeMap;
+    std::map<std::string, Node*> nodeMap;
 
     for (json instr : instrs)
     {
@@ -35,7 +35,7 @@ ComputeGraph parseJSON(json instrs)
         {
             auto storage = instr["value"].get<std::vector<float>>();
             auto dim = instr["dim"].get<std::vector<size_t>>();
-            curr->output = std::make_shared<Tensor>(storage, dim);
+            curr->output = std::make_shared<Tensor>(dim, storage);
             curr->operation = nullptr;
         }
         else if (instr["op"] == "matmul")
@@ -66,7 +66,7 @@ ComputeGraph parseJSON(json instrs)
         }
 
         // store in map
-        nodeMap[instr["id"]] = std::make_shared<Node>(*curr);
+        nodeMap[instr["id"]] = curr;
 
         // assign prev pointer
         Node* next = new Node();

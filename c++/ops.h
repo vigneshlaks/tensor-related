@@ -16,10 +16,10 @@ public:
 
 class MatMulOp : public Op {
 public:
-    Tensor* lhs;
-    Tensor* rhs;
-    Tensor* output;
-    MatMulOp(Tensor* left, Tensor* right, Tensor* output) 
+    std::shared_ptr<Tensor> lhs;
+    std::shared_ptr<Tensor> rhs;
+    std::shared_ptr<Tensor> output;
+    MatMulOp(std::shared_ptr<Tensor> left, std::shared_ptr<Tensor> right, std::shared_ptr<Tensor> output) 
         : lhs(left), rhs(right), output(output) {}
 
     bool verify() override;
@@ -28,9 +28,9 @@ public:
 
 class ReluOp : public Op {
 public:
-    Tensor* input;
-    Tensor* output;
-    ReluOp(Tensor* i, Tensor* o) : input(i), output(o) {}
+    std::shared_ptr<Tensor> input;
+    std::shared_ptr<Tensor> output;
+    ReluOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o) : input(i), output(o) {}
 
     bool verify() override;
     std::string print() override;
@@ -38,10 +38,10 @@ public:
 
 class MatMulReluOp : public Op {
 public:
-    Tensor* lhs;
-    Tensor* rhs;
-    Tensor* output;
-    MatMulReluOp(Tensor* lhs, Tensor* rhs, Tensor* output) 
+    std::shared_ptr<Tensor> lhs;
+    std::shared_ptr<Tensor> rhs;
+    std::shared_ptr<Tensor> output;
+    MatMulReluOp(std::shared_ptr<Tensor> lhs, std::shared_ptr<Tensor> rhs, std::shared_ptr<Tensor> output) 
         : lhs(lhs), rhs(rhs), output(output) {}
 
     bool verify() override;
@@ -50,9 +50,9 @@ public:
 
 class MSEOp : public Op {
 public:
-    Tensor* input;
-    Tensor* output;
-    MSEOp(Tensor* i, Tensor* o) : input(i), output(o) {}
+    std::shared_ptr<Tensor> input;
+    std::shared_ptr<Tensor> output;
+    MSEOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o) : input(i), output(o) {}
 
     bool verify() override;
     std::string print() override;
