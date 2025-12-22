@@ -7,8 +7,15 @@
 
 #include "types.h"
 
+enum Backend {
+    CPU,
+    GPU
+};
+
 class Op {
 public:
+    Backend backend = GPU;
+    int setBackend(Backend b);
     virtual ~Op() = default;
     virtual bool verify() = 0;
     virtual std::string print() = 0;

@@ -2,6 +2,8 @@
 #include <iostream>
 #include <algorithm> 
 
+// TODO Implement LocalApply
+
 int FusionPass::globalApply(ComputeGraph* graph) {
     int fusionCount = 0;
 
@@ -102,9 +104,24 @@ int QuantizationPass::globalApply(ComputeGraph* graph) {
         current = current->next;
     }
     return 0;
-};
+}
 
 int QuantizationPass::localApply(ComputeGraph* graph) {
+    return 0;
+};
+
+int BackendPass::globalApply(ComputeGraph* graph) {
+    Node* current = graph->head;
+
+    while (current != nullptr) {
+        current->operation->setBackend(this->backend);
+        current = current->next;
+    }
+
+    return 0;
+}
+
+int BackendPass::localApply(ComputeGraph* graph) {
     return 0;
 };
 

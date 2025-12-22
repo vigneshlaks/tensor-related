@@ -1,5 +1,10 @@
 #include "ops.h"
 
+int Op::setBackend(Backend b) {
+    this->backend = b;
+    return 0;
+}
+
 bool MatMulOp::verify() {
     if (lhs->dimension.size() == 1 || rhs->dimension.size() == 1) {
         return false;

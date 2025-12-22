@@ -20,7 +20,6 @@ private:
     bool canFuse(Node *first, Node *second);
     void fuseNodes(ComputeGraph *graph, Node *first, Node *second);
 public:
-    // stick with global apply for now
     int globalApply(ComputeGraph* graph) override;
     int localApply(ComputeGraph* graph) override;
 };
@@ -29,6 +28,15 @@ class QuantizationPass : Pass {
 private:
     std::variant<int, float> precision;
 public:
+    int globalApply(ComputeGraph* graph) override;
+    int localApply(ComputeGraph* graph) override;
+};
+
+class BackendPass : Pass {
+private:
+    Backend backend;
+public:
+    BackendPass(Backend b) : backend(b) {}
     int globalApply(ComputeGraph* graph) override;
     int localApply(ComputeGraph* graph) override;
 };
@@ -44,7 +52,6 @@ public:
 
     void runLocal();
     void runGlobal();
-    
     bool verify();
 };
 

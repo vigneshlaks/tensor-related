@@ -1,4 +1,0 @@
-w1 = const [[0.1, 0.2], [0.3, 0.4]];
-b1 = const [0.1, 0.2];
-h1_pre = matmul ['input', 'w1'];
-h1 = add ['h1_pre', 'b1'];
