@@ -45,7 +45,6 @@ public:
     void runLocal();
     void runGlobal();
     
-
     bool verify();
 };
 

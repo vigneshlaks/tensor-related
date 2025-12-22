@@ -1,7 +1,6 @@
 #include "passes.h"
 #include <iostream>
-#include <algorithm>
-#include <format> 
+#include <algorithm> 
 
 int FusionPass::globalApply(ComputeGraph* graph) {
     int fusionCount = 0;
@@ -56,7 +55,7 @@ void FusionPass::fuseNodes(ComputeGraph* graph, Node* first, Node* second) {
         std::shared_ptr<Tensor> lhs = dynamic_cast<MatMulOp*>(first->operation.get())->lhs;
         std::shared_ptr<Tensor> rhs = dynamic_cast<MatMulOp*>(first->operation.get())->rhs;
         std::shared_ptr<Tensor> output = dynamic_cast<ReluOp*>(second->operation.get())->output;
-        std::string fusedId = std::format("{}_{}", first->id, second->id);
+        std::string fusedId = first->id + "_" + second->id;
         
         fusedNode->output = output;
         fusedNode->operation = std::make_unique<MatMulReluOp>(lhs, rhs, output);
@@ -84,14 +83,24 @@ void FusionPass::fuseNodes(ComputeGraph* graph, Node* first, Node* second) {
         // add to map
         graph->nodeMap[fusedNode->id] = fusedNode;
         graph->nodeMap.erase(first->id);
-        graph->nodeMap.erase(second->id)
-        ;
+        graph->nodeMap.erase(second->id);
     } else {
         throw std::invalid_argument("Unsupport Node Fusion");
     }
 };
 
 int QuantizationPass::globalApply(ComputeGraph* graph) {
+    Node* current = graph->head;
+
+    while (current != nullptr) {
+        if (current->opType == Matmul) {
+            MatMulOp* matmul = dynamic_cast<MatMulOp*>(current->operation.get());
+            matmul->lhs->changePrecision(Int8);
+            matmul->rhs->changePrecision(Int8);
+            matmul->output->changePrecision(Int8);
+        }
+        current = current->next;
+    }
     return 0;
 };
 
@@ -109,9 +118,6 @@ void PassManager::runGlobal() {
        pass->globalApply(computeGraph);
     }
 };
-
-// map quantize to the tensor
-// map blah blah to blah blah
 
 // TODO run local will run the local optimizations for all the passes
 // one sequential pass instead of multiple

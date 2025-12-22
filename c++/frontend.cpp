@@ -21,15 +21,21 @@ ComputeGraph parseJSON(json instrs)
     head = curr;
 
     // for deleting nodes in O(1)
-    std::map<std::string, Node*> nodeMap;
+    std::unordered_map<std::string, Node*> nodeMap;
+
+    std::unordered_map<std::string, OpType> opTypeMap = {
+        {"const", OpType::Const},
+        {"matmul", OpType::Matmul},
+        {"relu", OpType::Relu},
+        {"mse_loss", OpType::MSE}
+    };
 
     for (json instr : instrs)
     {
         std::string id = instr["id"].get<std::string>();
-        OpType opType = instr["op"].get<OpType>();
 
         curr->id = id;
-        curr->opType = opType;
+        curr->opType = opTypeMap[instr["op"].get<std::string>()];
 
         if (instr["op"] == "const")
         {
@@ -80,4 +86,15 @@ ComputeGraph parseJSON(json instrs)
     return {
         head,
         nodeMap};
+}
+
+void printComputeGraph(ComputeGraph graph)
+{
+    std::cout << "Computing graph with " + std::to_string(graph.nodeMap.size()) + " nodes" << std::endl;
+
+    Node* curr = graph.head;
+    while (curr != nullptr) {
+        std::cout << "Node ID: " + curr->id + ", OpType: " + std::to_string((int)curr->opType) << std::endl;
+        curr = curr->next;
+    }
 }

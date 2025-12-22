@@ -9,6 +9,7 @@
 using json = nlohmann::json;
 
 enum OpType {
+    Const,
     Matmul,
     Relu,
     MatmulRelu,
@@ -29,11 +30,13 @@ struct Node {
 struct ComputeGraph {
     // just store the head for inference
     Node* head;
-    std::map<std::string, Node*> nodeMap;
+    std::unordered_map<std::string, Node*> nodeMap;
 };
 
 int parseBytecode();
+
 ComputeGraph parseJSON(json inputIR);
+
 void printComputeGraph(ComputeGraph cgraph);
 
 #endif

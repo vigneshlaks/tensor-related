@@ -27,3 +27,7 @@ void Tensor::fillStride() {
         stride[i] = stride[i + 1] * dimension[i + 1];
     }
 };
+
+void Tensor::changePrecision(Precision p) {
+    precision = p;
+};
