@@ -24,6 +24,7 @@ public:
     Tensor(std::vector<size_t> d, std::vector<float> s);
 
     float getValue(std::vector<size_t> index);
+    void setValue(std::vector<size_t> index, float value);
     void changePrecision(Precision p);
 };
 

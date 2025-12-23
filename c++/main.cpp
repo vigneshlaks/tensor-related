@@ -9,10 +9,8 @@
 using json = nlohmann::json;
 
 int main(int argc, char* argv[]) {
-    std::cout << "Tensor Compiler Starting..." << std::endl;
-
     ComputeGraph graph;
-    std::ifstream file("lay.json");
+    std::ifstream file("1_layer.json");
     if (!file.is_open()) {
         std::cerr << "Error: Could not open lay.json" << std::endl;
         return 1;
@@ -21,6 +19,5 @@ int main(int argc, char* argv[]) {
     ComputeGraph cGraph = parseJSON(json::parse(file));
     printComputeGraph(cGraph);
 
-    std::cout << "Execution complete." << std::endl;
     return 0;
 }

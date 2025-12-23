@@ -19,6 +19,7 @@ public:
     virtual ~Op() = default;
     virtual bool verify() = 0;
     virtual std::string print() = 0;
+    virtual void execute() = 0;
 };
 
 class MatMulOp : public Op {
@@ -31,6 +32,7 @@ public:
 
     bool verify() override;
     std::string print() override;
+    void execute() override;
 };
 
 class ReluOp : public Op {
@@ -41,6 +43,7 @@ public:
 
     bool verify() override;
     std::string print() override;
+    void execute() override;
 };
 
 class MatMulReluOp : public Op {
@@ -53,6 +56,7 @@ public:
 
     bool verify() override;
     std::string print() override;
+    void execute() override;
 };
 
 class MSEOp : public Op {
@@ -63,6 +67,7 @@ public:
 
     bool verify() override;
     std::string print() override;
+    void execute() override;
 };
 
 #endif

@@ -8,6 +8,7 @@ Tensor::Tensor(std::vector<size_t> d, std::vector<float> s) : dimension(d), stor
     fillStride();
 }
 
+// gets the flat index representation
 float Tensor::getValue(std::vector<size_t> index) {
     int flatIndex = 0;
 
@@ -16,6 +17,16 @@ float Tensor::getValue(std::vector<size_t> index) {
     }
 
     return storage[flatIndex];
+};
+
+void Tensor::setValue(std::vector<size_t> index, float value) {
+    int flatIndex = 0;
+
+    for (int i = 0; i < dimension.size(); i++) {
+        flatIndex += index[i] * stride[i];
+    }
+
+    storage[flatIndex] = value;
 };
 
 void Tensor::fillStride() {

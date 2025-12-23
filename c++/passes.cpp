@@ -2,8 +2,6 @@
 #include <iostream>
 #include <algorithm> 
 
-// TODO Implement LocalApply
-
 int FusionPass::globalApply(ComputeGraph* graph) {
     int fusionCount = 0;
 
