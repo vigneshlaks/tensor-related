@@ -36,7 +36,7 @@ void MatMulOp::execute() {
     } else {
         // launch cuda kernel
         // gpu case assume not implemented
-        std::runtime_error("GPU implementation not implemented");
+        throw std::runtime_error("GPU implementation not implemented");
     }
 };
 
@@ -64,13 +64,13 @@ void ReluOp::execute() {
     if (backend == CPU) {
         for (size_t i = 0; i < output->dimension.at(0); i++) {
             for (size_t j = 0; j < output->dimension.at(1); j++) {
-                if (output->getValue({i, j}) < 0) {
+                if (input->getValue({i, j}) < 0) {
                     output->setValue({i, j}, 0);
                 }
             }
         }
     } else {
-        std::runtime_error("GPU implementation not implemented");
+        throw std::runtime_error("GPU implementation not implemented");
     }
 };
 
@@ -103,7 +103,7 @@ void MatMulReluOp::execute() {
             }
         }
     } else {
-        std::runtime_error("GPU implementation not implemented");
+        throw std::runtime_error("GPU implementation not implemented");
     }
 };
 

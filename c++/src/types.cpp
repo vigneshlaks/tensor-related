@@ -2,6 +2,13 @@
 
 Tensor::Tensor(std::vector<size_t> d) : dimension(d) {
     fillStride();
+
+    size_t totalSize = 1;
+    for (size_t dim : dimension) {
+        totalSize *= dim;
+    }
+
+    storage.resize(totalSize, 0.0f);
 }
 
 Tensor::Tensor(std::vector<size_t> d, std::vector<float> s) : dimension(d), storage(s) {

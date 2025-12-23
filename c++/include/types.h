@@ -11,12 +11,12 @@ enum Precision {
 
 class Tensor {
 private:
-    std::vector<float> storage = {};
     // for now just store precision for kernel launches
     Precision precision = Float32;
     void fillStride();
 
 public:
+    std::vector<float> storage = {};  // Made public for direct access
     std::vector<size_t> dimension = {};
     std::vector<size_t> stride = {};
 
