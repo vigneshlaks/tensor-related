@@ -1,4 +1,10 @@
-#include "ops.h"
+#include "../include/ops.h"
+#include "../include/ops_gpu.h"
+
+// Stub implementation when CUDA is not available
+void matmulGPU(float* h_C, float* h_A, float* h_B, int rows, int cols, int k) {
+    throw std::runtime_error("GPU support not available - CUDA not found");
+}
 
 int Op::setBackend(Backend b) {
     this->backend = b;
@@ -36,7 +42,10 @@ void MatMulOp::execute() {
     } else {
         // launch cuda kernel
         // gpu case assume not implemented
-        throw std::runtime_error("GPU implementation not implemented");
+        float* h_C = &(output->storage[0]);
+        float* h_A = &(lhs->storage[0]);
+        float* h_B = &(rhs->storage[0]);
+        matmulGPU(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
     }
 };
 

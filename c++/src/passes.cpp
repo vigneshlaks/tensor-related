@@ -1,4 +1,4 @@
-#include "passes.h"
+#include "../include/passes.h"
 #include <iostream>
 #include <algorithm> 
 
@@ -87,6 +87,10 @@ void FusionPass::fuseNodes(ComputeGraph* graph, Node* first, Node* second) {
     } else {
         throw std::invalid_argument("Unsupport Node Fusion");
     }
+};
+
+int FusionPass::localApply(ComputeGraph* graph) {
+    return 0;
 };
 
 int QuantizationPass::globalApply(ComputeGraph* graph) {

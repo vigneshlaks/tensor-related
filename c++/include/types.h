@@ -16,7 +16,7 @@ private:
     void fillStride();
 
 public:
-    std::vector<float> storage = {};  // Made public for direct access
+    std::vector<float> storage = {};
     std::vector<size_t> dimension = {};
     std::vector<size_t> stride = {};
 

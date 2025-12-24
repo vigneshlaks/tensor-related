@@ -15,7 +15,8 @@ public:
     virtual int localApply(ComputeGraph* graph) = 0;
 };
 
-class FusionPass : Pass {
+// fuse operations
+class FusionPass : public Pass {
 private:
     bool canFuse(Node *first, Node *second);
     void fuseNodes(ComputeGraph *graph, Node *first, Node *second);
@@ -24,7 +25,8 @@ public:
     int localApply(ComputeGraph* graph) override;
 };
 
-class QuantizationPass : Pass {
+// change precision
+class QuantizationPass : public Pass {
 private:
     std::variant<int, float> precision;
 public:
@@ -32,7 +34,8 @@ public:
     int localApply(ComputeGraph* graph) override;
 };
 
-class BackendPass : Pass {
+// choose a backend (cpu or gpu)
+class BackendPass : public Pass {
 private:
     Backend backend;
 public:

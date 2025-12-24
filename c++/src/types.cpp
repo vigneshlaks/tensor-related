@@ -1,4 +1,4 @@
-#include "types.h"
+#include "../include/types.h"
 
 Tensor::Tensor(std::vector<size_t> d) : dimension(d) {
     fillStride();
