@@ -102,9 +102,14 @@ int QuantizationPass::globalApply(ComputeGraph* graph) {
     while (current != nullptr) {
         if (current->opType == Matmul) {
             MatMulOp* matmul = dynamic_cast<MatMulOp*>(current->operation.get());
-            matmul->lhs->changePrecision(Int8);
-            matmul->rhs->changePrecision(Int8);
-            matmul->output->changePrecision(Int8);
+            matmul->lhs->changePrecision(precision);
+            matmul->rhs->changePrecision(precision);
+            matmul->output->changePrecision(precision);
+        } else if (current->opType == MatmulRelu) {
+            MatMulReluOp* matmulRelu = dynamic_cast<MatMulReluOp*>(current->operation.get());
+            matmulRelu->lhs->changePrecision(precision);
+            matmulRelu->rhs->changePrecision(precision);
+            matmulRelu->output->changePrecision(precision);
         }
         current = current->next;
     }

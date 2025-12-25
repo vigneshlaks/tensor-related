@@ -28,8 +28,9 @@ public:
 // change precision
 class QuantizationPass : public Pass {
 private:
-    std::variant<int, float> precision;
+    Precision precision;
 public:
+    QuantizationPass(Precision p) : precision(p) {};
     int globalApply(ComputeGraph* graph) override;
     int localApply(ComputeGraph* graph) override;
 };

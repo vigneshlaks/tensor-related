@@ -8,39 +8,43 @@
 
 using json = nlohmann::json;
 
-int main(int argc, char *argv[]) {
-      std::ifstream file("./ir/1_layer.json");
-      json inputIR;
-      file >> inputIR;
+int main() {
+        std::ifstream file("./ir/1_layer.json");
+        json inputIR;
+        file >> inputIR;
 
-      ComputeGraph graph = parseJSON(inputIR);
+        ComputeGraph graph = parseJSON(inputIR);
+        std::cout << "Before optimization:" << std::endl;
+        printComputeGraph(graph);
 
-      std::cout << "Before optimization:" << std::endl;
-      printComputeGraph(graph);
+        std::vector<Pass*> passes;
+        PassManager pm(&graph, passes);
 
-      std::vector<Pass*> passes;
-      PassManager pm(&graph, passes);
+        BackendPass bp(Backend::CPU);
+        pm.registerPass(&bp);
 
-      BackendPass bp(Backend::CPU);
-      pm.registerPass(&bp);
+        FusionPass fp;
+        pm.registerPass(&fp);
 
-      FusionPass fp;
-      pm.registerPass(&fp);
-      pm.runGlobal();
-      
+        // I guess more accurately it allows a change in precision
+        Precision p = Int8;
+        QuantizationPass qp(p);
+        pm.registerPass(&qp);
+        
+        pm.runGlobal();
 
-      std::cout << "\nAfter optimization:" << std::endl;
-      printComputeGraph(graph);
+        std::cout << "\nAfter optimization:" << std::endl;
+        printComputeGraph(graph);
 
-      Node* current = graph.head;
-      while (current != nullptr) {
-          if (current->operation != nullptr) {
-              current->operation->execute();
-          }
-          current = current->next;
-      }
+        Node* current = graph.head;
+        while (current != nullptr) {
+            if (current->operation != nullptr) {
+                current->operation->execute();
+            }
+            current = current->next;
+        }
 
-      std::cout << "\nExecution complete!" << std::endl;
+        std::cout << "\nExecution complete!" << std::endl;
 
-      return 0;
+        return 0;
   }

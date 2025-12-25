@@ -88,6 +88,7 @@ ComputeGraph parseJSON(json instrs)
         nodeMap};
 }
 
+// TODO make a better version of this and add graph viz
 void printComputeGraph(ComputeGraph graph)
 {
     std::map<OpType, std::string> opNames = {
@@ -126,4 +127,48 @@ void printComputeGraph(ComputeGraph graph)
         std::cout << std::endl;
         curr = curr->next;
     }
+}
+
+
+void PrintComputeGraph(auto input)
+{
+    std::map<OpType, std::string> opNames = {
+        {OpType::Const, "Const"},
+        {OpType::Matmul, "MatMul"},
+        {OpType::Relu, "ReLU"},
+        {OpType::MatmulRelu, "MatMul+ReLU"},
+        {OpType::MSE, "MSE"}
+    };
+
+    std::cout << "Graph (" << input.nodeMap.size() << " nodes):" << std::endl;
+
+    Node* curr = input.head;
+    while (curr != nullptr && !curr->id.empty()) {
+        std::cout << "  " << curr->id << " [" << opNames[curr->opType] << "]";
+
+        if (curr->output) {
+            std::cout << " → [";
+            for (size_t i = 0; i < curr->output->dimension.size(); i++) {
+                std::cout << curr->output->dimension[i];
+                if (i < curr->output->dimension.size() - 1) std::cout << "×";
+            }
+            std::cout << "]";
+        }
+
+        if (curr->operation) {
+            std::cout << " | Op: " << curr->operation->print();
+        } else {
+            std::cout << " | No operation (const)";
+        }
+
+        std::cout << " | Prev: " << (curr->prev ? curr->prev->id : "null");
+        std::cout << " | Next: " << (curr->next && !curr->next->id.empty() ? curr->next->id : "null");
+
+        std::cout << std::endl;
+        curr = curr->next;
+    }
+}
+
+void printNode() {
+
 }

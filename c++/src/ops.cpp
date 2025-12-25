@@ -21,9 +21,17 @@ bool MatMulOp::verify() {
 };
 
 std::string MatMulOp::print() {
-    return "MatMul(" + std::to_string(lhs->dimension.size()) + ", " +
-           std::to_string(rhs->dimension.size()) + " -> " +
-           std::to_string(output->dimension.size()) + ")";
+    auto formatTensor = [](std::shared_ptr<Tensor> t) {
+        std::string result = "[";
+        for (size_t i = 0; i < t->dimension.size(); i++) {
+            result += std::to_string(t->dimension[i]);
+            if (i < t->dimension.size() - 1) result += "×";
+        }
+        result += ", " + std::string((t->precision == Float32) ? "Float32" : "Int8") + "]";
+        return result;
+    };
+
+    return "MatMul(lhs: " + formatTensor(lhs) + ", rhs: " + formatTensor(rhs) + " → " + formatTensor(output) + ")";
 };
 
 void MatMulOp::execute() {
@@ -66,8 +74,17 @@ bool ReluOp::verify() {
 };
 
 std::string ReluOp::print() {
-    return "Relu(input, output -> " + std::to_string(input->dimension.size()) +
-           " -> " + std::to_string(output->dimension.size()) + ")";
+    auto formatTensor = [](std::shared_ptr<Tensor> t) {
+        std::string result = "[";
+        for (size_t i = 0; i < t->dimension.size(); i++) {
+            result += std::to_string(t->dimension[i]);
+            if (i < t->dimension.size() - 1) result += "×";
+        }
+        result += ", " + std::string((t->precision == Float32) ? "Float32" : "Int8") + "]";
+        return result;
+    };
+
+    return "Relu(input: " + formatTensor(input) + " → " + formatTensor(output) + ")";
 };
 
 void ReluOp::execute() {
@@ -89,9 +106,17 @@ bool MatMulReluOp::verify(){
 };
 
 std::string MatMulReluOp::print() {
-    return "MatMulRelu(" + std::to_string(lhs->dimension.size()) + ", " +
-           std::to_string(rhs->dimension.size()) + " -> " +
-           std::to_string(output->dimension.size()) + ")";
+    auto formatTensor = [](std::shared_ptr<Tensor> t) {
+        std::string result = "[";
+        for (size_t i = 0; i < t->dimension.size(); i++) {
+            result += std::to_string(t->dimension[i]);
+            if (i < t->dimension.size() - 1) result += "×";
+        }
+        result += ", " + std::string((t->precision == Float32) ? "Float32" : "Int8") + "]";
+        return result;
+    };
+
+    return "MatMulRelu(lhs: " + formatTensor(lhs) + ", rhs: " + formatTensor(rhs) + " → " + formatTensor(output) + ")";
 };
 
 void MatMulReluOp::execute() {
@@ -133,8 +158,17 @@ bool MSEOp::verify(){
 };
 
 std::string MSEOp::print() {
-    return "MSE(input, output -> " + std::to_string(input->dimension.size()) +
-           " -> " + std::to_string(output->dimension.size()) + ")";
+    auto formatTensor = [](std::shared_ptr<Tensor> t) {
+        std::string result = "[";
+        for (size_t i = 0; i < t->dimension.size(); i++) {
+            result += std::to_string(t->dimension[i]);
+            if (i < t->dimension.size() - 1) result += "×";
+        }
+        result += ", " + std::string((t->precision == Float32) ? "Float32" : "Int8") + "]";
+        return result;
+    };
+
+    return "MSE(input: " + formatTensor(input) + " → " + formatTensor(output) + ")";
 };
 
 void MSEOp::execute() {
