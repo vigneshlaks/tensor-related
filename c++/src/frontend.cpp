@@ -90,11 +90,40 @@ ComputeGraph parseJSON(json instrs)
 
 void printComputeGraph(ComputeGraph graph)
 {
-    std::cout << "Computing graph with " + std::to_string(graph.nodeMap.size()) + " nodes" << std::endl;
+    std::map<OpType, std::string> opNames = {
+        {OpType::Const, "Const"},
+        {OpType::Matmul, "MatMul"},
+        {OpType::Relu, "ReLU"},
+        {OpType::MatmulRelu, "MatMul+ReLU"},
+        {OpType::MSE, "MSE"}
+    };
+
+    std::cout << "Graph (" << graph.nodeMap.size() << " nodes):" << std::endl;
 
     Node* curr = graph.head;
-    while (curr != nullptr) {
-        std::cout << "Node ID: " + curr->id + ", OpType: " + std::to_string((int)curr->opType) << std::endl;
+    while (curr != nullptr && !curr->id.empty()) {
+        std::cout << "  " << curr->id << " [" << opNames[curr->opType] << "]";
+
+        if (curr->output) {
+            std::cout << " → [";
+            for (size_t i = 0; i < curr->output->dimension.size(); i++) {
+                std::cout << curr->output->dimension[i];
+                if (i < curr->output->dimension.size() - 1) std::cout << "×";
+            }
+            std::cout << "]";
+        }
+
+        if (curr->operation) {
+            std::cout << " | Op: " << curr->operation->print();
+            std::cout << " | Backend: " << (curr->operation->backend == CPU ? "CPU" : "GPU");
+        } else {
+            std::cout << " | No operation (const)";
+        }
+
+        std::cout << " | Prev: " << (curr->prev ? curr->prev->id : "null");
+        std::cout << " | Next: " << (curr->next && !curr->next->id.empty() ? curr->next->id : "null");
+
+        std::cout << std::endl;
         curr = curr->next;
     }
 }

@@ -8,15 +8,43 @@
 
 using json = nlohmann::json;
 
-int main(int argc, char *argv[])
-{
-    ComputeGraph graph;
-    std::ifstream file("./ir/1_layer.json");
-    std::vector<Pass*> passes;
-    PassManager pm(&graph, passes);
+int main(int argc, char *argv[]) {
+      std::ifstream file("./ir/1_layer.json");
+      json inputIR;
+      file >> inputIR;
 
-    BackendPass bp(Backend::CPU);
-    pm.registerPass(&bp);
+      ComputeGraph graph = parseJSON(inputIR);
 
-    return 0;
-}
+      std::cout << "Before optimization:" << std::endl;
+      printComputeGraph(graph);
+
+      std::vector<Pass*> passes;
+      PassManager pm(&graph, passes);
+
+      BackendPass bp(Backend::CPU);
+      pm.registerPass(&bp);
+      
+
+      FusionPass fp;
+      
+      pm.registerPass(&fp);
+      
+      
+      pm.runGlobal();
+      
+
+      std::cout << "\nAfter optimization:" << std::endl;
+      printComputeGraph(graph);
+
+      Node* current = graph.head;
+      while (current != nullptr) {
+          if (current->operation != nullptr) {
+              current->operation->execute();
+          }
+          current = current->next;
+      }
+
+      std::cout << "\nExecution complete!" << std::endl;
+
+      return 0;
+  }

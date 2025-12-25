@@ -1,5 +1,6 @@
 #include "../include/ops.h"
 #include "../include/ops_gpu.h"
+#include <iostream>
 
 // Stub implementation when CUDA is not available
 void matmulGPU(float* h_C, float* h_A, float* h_B, int rows, int cols, int k) {
