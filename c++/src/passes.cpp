@@ -43,6 +43,7 @@ bool FusionPass::canFuse(Node* first, Node* second) {
     return false;
 };
 
+// backend is associated with first node's backend
 void FusionPass::fuseNodes(ComputeGraph* graph, Node* first, Node* second) {
     // first and second node
     Node* newPrev = first->prev;
@@ -51,6 +52,7 @@ void FusionPass::fuseNodes(ComputeGraph* graph, Node* first, Node* second) {
     // construct node
     if (first->opType == Matmul && second->opType == Relu) {
         Node* fusedNode = new Node();
+        Backend newBackend = first->operation->backend;
         
         std::shared_ptr<Tensor> lhs = dynamic_cast<MatMulOp*>(first->operation.get())->lhs;
         std::shared_ptr<Tensor> rhs = dynamic_cast<MatMulOp*>(first->operation.get())->rhs;
@@ -59,6 +61,7 @@ void FusionPass::fuseNodes(ComputeGraph* graph, Node* first, Node* second) {
         
         fusedNode->output = output;
         fusedNode->operation = std::make_unique<MatMulReluOp>(lhs, rhs, output);
+        fusedNode->operation->backend = newBackend;
         fusedNode->opType= MatmulRelu;
         fusedNode->id = fusedId;
 
