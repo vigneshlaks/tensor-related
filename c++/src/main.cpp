@@ -23,13 +23,9 @@ int main(int argc, char *argv[]) {
 
       BackendPass bp(Backend::CPU);
       pm.registerPass(&bp);
-      
 
       FusionPass fp;
-      
       pm.registerPass(&fp);
-      
-      
       pm.runGlobal();
       
 

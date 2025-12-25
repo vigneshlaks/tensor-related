@@ -76,14 +76,14 @@ void FusionPass::fuseNodes(ComputeGraph* graph, Node* first, Node* second) {
         fusedNode->next = newNext;
         fusedNode->prev = newPrev;
 
-        // delete old nodes
+        // get rid of old nodes
+        graph->nodeMap.erase(first->id);
+        graph->nodeMap.erase(second->id);
         delete first;
         delete second;
 
         // add to map
         graph->nodeMap[fusedNode->id] = fusedNode;
-        graph->nodeMap.erase(first->id);
-        graph->nodeMap.erase(second->id);
     } else {
         throw std::invalid_argument("Unsupport Node Fusion");
     }
@@ -118,7 +118,7 @@ int BackendPass::globalApply(ComputeGraph* graph) {
     while (current != nullptr) {
         // const has null operation
         if (current->operation != nullptr) {
-            // this->backend refers to the backend we associated with this pass
+            // set the backend associated with this pass to the operation
             current->operation->setBackend(this->backend);
         }
         current = current->next;
