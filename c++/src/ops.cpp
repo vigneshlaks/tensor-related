@@ -1,16 +1,30 @@
 #include "../include/ops.h"
-#include "../include/ops_gpu.h"
-#include <iostream>
 
-// Stub implementation when CUDA is not available
-void matmulGPU(float* h_C, float* h_A, float* h_B, int rows, int cols, int k) {
-    throw std::runtime_error("GPU support not available - CUDA not found");
-}
+// compile flag to state if we have a GPU
+// Not included in compilation if CUDA is not recognized
+#ifdef CUDA_FOUND
+#include "../include/gpu_exec.h"
+#endif
+
+#include <iostream>
 
 int Op::setBackend(Backend b) {
     this->backend = b;
     return 0;
 }
+
+bool ConstOp::verify() {
+    return true;
+};
+
+std::string ConstOp::print() {
+    return "Const(output: " + output->print() + ")";
+};
+
+void ConstOp::execute() {
+    return;
+};
+
 
 bool MatMulOp::verify() {
     if (lhs->dimension.size() == 1 || rhs->dimension.size() == 1) {
@@ -21,17 +35,7 @@ bool MatMulOp::verify() {
 };
 
 std::string MatMulOp::print() {
-    auto formatTensor = [](std::shared_ptr<Tensor> t) {
-        std::string result = "[";
-        for (size_t i = 0; i < t->dimension.size(); i++) {
-            result += std::to_string(t->dimension[i]);
-            if (i < t->dimension.size() - 1) result += "×";
-        }
-        result += ", " + std::string((t->precision == Float32) ? "Float32" : "Int8") + "]";
-        return result;
-    };
-
-    return "MatMul(lhs: " + formatTensor(lhs) + ", rhs: " + formatTensor(rhs) + " → " + formatTensor(output) + ")";
+    return "MatMul(lhs: " + lhs->print() + ", rhs: " + rhs->print() + " → " + output->print() + ")";
 };
 
 void MatMulOp::execute() {
@@ -49,12 +53,17 @@ void MatMulOp::execute() {
             }
         }
     } else {
-        // launch cuda kernel
-        // gpu case assume not implemented
+        // compile flag to state if we have a GPU
+        // GPU function is not compiled if CUDA is not recognized
+        #ifdef CUDA_FOUND
+        // Get the memory address for the first element
         float* h_C = &(output->storage[0]);
         float* h_A = &(lhs->storage[0]);
         float* h_B = &(rhs->storage[0]);
-        matmulGPU(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
+        matmul(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
     }
 };
 
@@ -74,17 +83,7 @@ bool ReluOp::verify() {
 };
 
 std::string ReluOp::print() {
-    auto formatTensor = [](std::shared_ptr<Tensor> t) {
-        std::string result = "[";
-        for (size_t i = 0; i < t->dimension.size(); i++) {
-            result += std::to_string(t->dimension[i]);
-            if (i < t->dimension.size() - 1) result += "×";
-        }
-        result += ", " + std::string((t->precision == Float32) ? "Float32" : "Int8") + "]";
-        return result;
-    };
-
-    return "Relu(input: " + formatTensor(input) + " → " + formatTensor(output) + ")";
+    return "Relu(input: " + input->print() + " → " + output->print() + ")";
 };
 
 void ReluOp::execute() {
@@ -97,7 +96,18 @@ void ReluOp::execute() {
             }
         }
     } else {
-        throw std::runtime_error("GPU implementation not implemented");
+        // compile flag to state if we have a GPU
+        // GPU function is not compiled if CUDA is not recognized
+        #ifdef CUDA_FOUND
+        float* h_input = &(input->storage[0]);
+        float* h_output = &(output->storage[0]);
+        int size = input->storage.size();
+
+        relu(h_output, h_input, size);
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+
     }
 };
 
@@ -106,17 +116,7 @@ bool MatMulReluOp::verify(){
 };
 
 std::string MatMulReluOp::print() {
-    auto formatTensor = [](std::shared_ptr<Tensor> t) {
-        std::string result = "[";
-        for (size_t i = 0; i < t->dimension.size(); i++) {
-            result += std::to_string(t->dimension[i]);
-            if (i < t->dimension.size() - 1) result += "×";
-        }
-        result += ", " + std::string((t->precision == Float32) ? "Float32" : "Int8") + "]";
-        return result;
-    };
-
-    return "MatMulRelu(lhs: " + formatTensor(lhs) + ", rhs: " + formatTensor(rhs) + " → " + formatTensor(output) + ")";
+    return "MatMulRelu(lhs: " + lhs->print() + ", rhs: " + rhs->print() + " → " + output->print() + ")";
 };
 
 void MatMulReluOp::execute() {
@@ -138,18 +138,25 @@ void MatMulReluOp::execute() {
             }
         }
     } else {
-        throw std::runtime_error("GPU implementation not implemented");
+        #ifdef CUDA_FOUND
+        float* h_C = &(output->storage[0]);
+        float* h_A = &(lhs->storage[0]);
+        float* h_B = &(rhs->storage[0]);
+        matmulRelu(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
     }
 };
 
 bool MSEOp::verify(){
-    if (input->dimension.size() != output->dimension.size()) {
+    if (input->dimension.size() != output->dimension.size() || input->dimension.size() != ground_truth->dimension.size()) {
         return false;
     }
 
     // check same shape
     for (int i=0; i < input->dimension.size(); i++) {
-        if (input->dimension[i] != output->dimension[i]) {
+        if (input->dimension[i] != output->dimension[i] || input->dimension[i] != ground_truth->dimension[i]) {
             return false;
         }
     }
@@ -158,19 +165,30 @@ bool MSEOp::verify(){
 };
 
 std::string MSEOp::print() {
-    auto formatTensor = [](std::shared_ptr<Tensor> t) {
-        std::string result = "[";
-        for (size_t i = 0; i < t->dimension.size(); i++) {
-            result += std::to_string(t->dimension[i]);
-            if (i < t->dimension.size() - 1) result += "×";
-        }
-        result += ", " + std::string((t->precision == Float32) ? "Float32" : "Int8") + "]";
-        return result;
-    };
-
-    return "MSE(input: " + formatTensor(input) + " → " + formatTensor(output) + ")";
+    return "MSE(input: " + input->print() + " → " + output->print() + ")";
 };
 
 void MSEOp::execute() {
-    return;
+    if (backend == CPU) {
+        for (size_t i = 0; i < output->dimension.at(0); i++) {
+            for (size_t j = 0; j < output->dimension.at(1); j++) {
+                float diff = input->getValue({i, j}) - ground_truth->getValue({i, j});
+                output->setValue({i, j}, diff * diff);
+            }
+        }
+    } else {
+        // compile flag to state if we have a GPU
+        // GPU function is not compiled if CUDA is not recognized
+        #ifdef CUDA_FOUND
+        float* h_output = &(output->storage[0]);
+        float* h_input = &(input->storage[0]);
+        float* h_ground_truth = &(ground_truth->storage[0]);
+        int size = input->storage.size();
+
+        MSE(h_output, h_input, h_ground_truth, size);
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    }
 };
+

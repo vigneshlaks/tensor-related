@@ -26,6 +26,7 @@ public:
     float getValue(std::vector<size_t> index);
     void setValue(std::vector<size_t> index, float value);
     void changePrecision(Precision p);
+    std::string print();
 };
 
 #endif

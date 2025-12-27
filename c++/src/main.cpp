@@ -26,7 +26,6 @@ int main() {
         FusionPass fp;
         pm.registerPass(&fp);
 
-        // I guess more accurately it allows a change in precision
         Precision p = Int8;
         QuantizationPass qp(p);
         pm.registerPass(&qp);
@@ -46,5 +45,20 @@ int main() {
 
         std::cout << "\nExecution complete!" << std::endl;
 
+          std::cout << "\nFinal Results:" << std::endl;
+            
+        current = graph.head;
+        while (current != nullptr) {
+            if (current->output != nullptr) {
+                std::cout << current->id << ": ";
+                for (float val : current->output->storage) {
+                    std::cout << val << " ";
+                }
+                std::cout << std::endl;
+            }
+            current = current->next;
+        }
+
+
         return 0;
-  }
+}

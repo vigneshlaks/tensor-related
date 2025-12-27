@@ -22,13 +22,24 @@ public:
     virtual void execute() = 0;
 };
 
+class ConstOp : public Op {
+public:
+    std::shared_ptr<Tensor> output;
+    ConstOp(std::shared_ptr<Tensor> o) 
+        : output(o) {};
+
+    bool verify() override;
+    std::string print() override;
+    void execute() override;
+};
+
 class MatMulOp : public Op {
 public:
     std::shared_ptr<Tensor> lhs;
     std::shared_ptr<Tensor> rhs;
     std::shared_ptr<Tensor> output;
     MatMulOp(std::shared_ptr<Tensor> left, std::shared_ptr<Tensor> right, std::shared_ptr<Tensor> output) 
-        : lhs(left), rhs(right), output(output) {}
+        : lhs(left), rhs(right), output(output) {};
 
     bool verify() override;
     std::string print() override;
@@ -63,7 +74,8 @@ class MSEOp : public Op {
 public:
     std::shared_ptr<Tensor> input;
     std::shared_ptr<Tensor> output;
-    MSEOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o) : input(i), output(o) {}
+    std::shared_ptr<Tensor> ground_truth;
+    MSEOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o, std::shared_ptr<Tensor> g) : input(i), output(o), ground_truth(g) {}
 
     bool verify() override;
     std::string print() override;

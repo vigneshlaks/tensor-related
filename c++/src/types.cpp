@@ -49,3 +49,13 @@ void Tensor::fillStride() {
 void Tensor::changePrecision(Precision p) {
     precision = p;
 };
+
+std::string Tensor::print() {
+    std::string result = "[";
+    for (size_t i = 0; i < dimension.size(); i++) {
+        result += std::to_string(dimension[i]);
+        if (i < dimension.size() - 1) result += "×";
+    }
+    result += ", " + std::string((precision == Float32) ? "Float32" : "Int8") + "]";
+    return result;
+};

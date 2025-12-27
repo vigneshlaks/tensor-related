@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.18)
 
 project(ttc)
 
+# set(CMAKE_CXX_COMPILER /usr/bin/clang++)
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++")
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -12,15 +15,13 @@ if (CUDA_FOUND)
     enable_language(CUDA)
     set(CMAKE_CUDA_STANDARD 17)
     message("Building with GPU support")
-    add_library(ops_gpu src/ops_gpu.cu include/ops_gpu.h)
-    target_link_libraries(ops_gpu PRIVATE cuda)
-    set(OPS_GPU_LIB ops_gpu)
+    add_library(gpu_exec src/gpu_exec.cu include/gpu_exec.h)
+    target_link_libraries(gpu_exec PRIVATE cuda)
+    set(OPS_GPU_LIB gpu_exec)
 else()
     message("Building with CPU support")
     set(OPS_GPU_LIB "")
 endif()
-
-set(CMAKE_CXX_COMPILER /usr/bin/clang++)
 
 add_library(frontend src/frontend.cpp include/frontend.h)
 add_library(ops src/ops.cpp include/ops.h)
