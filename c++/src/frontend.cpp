@@ -41,8 +41,10 @@ ComputeGraph parseJSON(json instrs)
         {
             auto storage = instr["value"].get<std::vector<float>>();
             auto dim = instr["dim"].get<std::vector<size_t>>();
-            curr->output = std::make_shared<Tensor>(dim, storage);
-            curr->operation = nullptr;
+            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(dim, storage);
+
+            curr->output = output;
+            curr->operation = std::make_unique<ConstOp>(output);
         }
         else if (instr["op"] == "matmul")
         {
@@ -56,6 +58,7 @@ ComputeGraph parseJSON(json instrs)
         }
         else if (instr["op"] == "relu")
         {
+            // get the input tensors
             std::shared_ptr<Tensor> input = nodeMap[instr["args"][0].get<std::string>()]->output;
             // assumes 2 dimensions
             std::shared_ptr<Tensor> output = std::make_shared<Tensor>(std::vector<size_t>{input->dimension[0], input->dimension[1]});
@@ -64,17 +67,22 @@ ComputeGraph parseJSON(json instrs)
         }
         else if (instr["op"] == "mse_loss")
         {
+            // get the input tensors
             std::shared_ptr<Tensor> input = nodeMap[instr["args"][0].get<std::string>()]->output;
-            // assumes 2 dimensions
             std::shared_ptr<Tensor> output = std::make_shared<Tensor>(std::vector<size_t>{input->dimension[0], input->dimension[1]});
-            curr->output = output;
-            curr->operation = std::make_unique<MSEOp>(input, output);
+
+            // value and dim within the json for the loss represents the ground truth
+            std::vector<size_t> dim = instr["dim"].get<std::vector<size_t>>();
+            std::vector<float> storage = instr["value"].get<std::vector<float>>();
+            std::shared_ptr<Tensor> ground_truth = std::make_shared<Tensor>(dim, storage);
+
+            curr->operation = std::make_unique<MSEOp>(input, output, ground_truth);
         }
 
         // store in map
         nodeMap[instr["id"]] = curr;
 
-        // assign prev pointer
+        // assign pointers
         Node* next = new Node();
         next->prev = curr;
         curr->next = next;
@@ -89,7 +97,7 @@ ComputeGraph parseJSON(json instrs)
 }
 
 // TODO make a better version of this and add graph viz
-void printComputeGraph(ComputeGraph graph)
+void printComputeGraph(ComputeGraph cgraph)
 {
     std::map<OpType, std::string> opNames = {
         {OpType::Const, "Const"},
@@ -99,50 +107,9 @@ void printComputeGraph(ComputeGraph graph)
         {OpType::MSE, "MSE"}
     };
 
-    std::cout << "Graph (" << graph.nodeMap.size() << " nodes):" << std::endl;
+    std::cout << "Graph (" << cgraph.nodeMap.size() << " nodes):" << std::endl;
 
-    Node* curr = graph.head;
-    while (curr != nullptr && !curr->id.empty()) {
-        std::cout << "  " << curr->id << " [" << opNames[curr->opType] << "]";
-
-        if (curr->output) {
-            std::cout << " → [";
-            for (size_t i = 0; i < curr->output->dimension.size(); i++) {
-                std::cout << curr->output->dimension[i];
-                if (i < curr->output->dimension.size() - 1) std::cout << "×";
-            }
-            std::cout << "]";
-        }
-
-        if (curr->operation) {
-            std::cout << " | Op: " << curr->operation->print();
-            std::cout << " | Backend: " << (curr->operation->backend == CPU ? "CPU" : "GPU");
-        } else {
-            std::cout << " | No operation (const)";
-        }
-
-        std::cout << " | Prev: " << (curr->prev ? curr->prev->id : "null");
-        std::cout << " | Next: " << (curr->next && !curr->next->id.empty() ? curr->next->id : "null");
-
-        std::cout << std::endl;
-        curr = curr->next;
-    }
-}
-
-
-void PrintComputeGraph(auto input)
-{
-    std::map<OpType, std::string> opNames = {
-        {OpType::Const, "Const"},
-        {OpType::Matmul, "MatMul"},
-        {OpType::Relu, "ReLU"},
-        {OpType::MatmulRelu, "MatMul+ReLU"},
-        {OpType::MSE, "MSE"}
-    };
-
-    std::cout << "Graph (" << input.nodeMap.size() << " nodes):" << std::endl;
-
-    Node* curr = input.head;
+    Node* curr = cgraph.head;
     while (curr != nullptr && !curr->id.empty()) {
         std::cout << "  " << curr->id << " [" << opNames[curr->opType] << "]";
 
@@ -169,6 +136,5 @@ void PrintComputeGraph(auto input)
     }
 }
 
-void printNode() {
-
-}
+// void printNode() {
+// }
