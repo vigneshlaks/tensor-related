@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 3.18)
 
 project(ttc)
 
-# set(CMAKE_CXX_COMPILER /usr/bin/clang++)
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++")
-
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

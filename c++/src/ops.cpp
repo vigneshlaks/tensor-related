@@ -91,6 +91,7 @@ void ReluOp::execute() {
         for (size_t i = 0; i < output->dimension.at(0); i++) {
             for (size_t j = 0; j < output->dimension.at(1); j++) {
                 if (input->getValue({i, j}) < 0) {
+                    std::cout << input->getValue({i, j});
                     output->setValue({i, j}, 0);
                 }
             }
@@ -107,7 +108,6 @@ void ReluOp::execute() {
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
-
     }
 };
 

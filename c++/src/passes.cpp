@@ -126,6 +126,7 @@ int BackendPass::globalApply(ComputeGraph* graph) {
     while (current != nullptr) {
         // const has null operation
         if (current->operation != nullptr) {
+            
             // set the backend associated with this pass to the operation
             current->operation->setBackend(this->backend);
         }
