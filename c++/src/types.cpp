@@ -23,12 +23,11 @@ Tensor::Tensor(std::vector<size_t> d, std::vector<float> s) : dimension(d), stor
     if (storage.size() != totalSize) {
         throw std::invalid_argument("Storage and Dimension Can't Be Reconciled");
     }
-}
+};
 
-// gets the flat index representation
+// gets the flat index
 float Tensor::getValue(std::vector<size_t> index) {
     int flatIndex = 0;
-
     // bounds check
     for (int i = 0; i < dimension.size(); i++) {
         if (dimension[i] - 1 < index[i]) {
@@ -39,7 +38,6 @@ float Tensor::getValue(std::vector<size_t> index) {
     for (int i = 0; i < dimension.size(); i++) {
         flatIndex += index[i] * stride[i];
     }
-
     return storage[flatIndex];
 };
 
@@ -63,8 +61,6 @@ void Tensor::fillStride() {
     stride.back() = 1;
     
     // specify jump sizes based on what comes after
-    // consider what happens in 2D case
-    // 
     for (int i = dimension.size() - 2; i >= 0; i--) {
         stride[i] = stride[i + 1] * dimension[i + 1];
     }
@@ -81,5 +77,29 @@ std::string Tensor::print() {
         if (i < dimension.size() - 1) result += "×";
     }
     result += ", " + std::string((precision == Float32) ? "Float32" : "Int8") + "]";
+    return result;
+};
+
+std::string Tensor::printVerbose() {
+    std::string result = "Tensor Information:\n";
+
+    result += "  Dimensions: [";
+    for (size_t i = 0; i < dimension.size(); i++) {
+        result += std::to_string(dimension[i]);
+        if (i < dimension.size() - 1) result += " × ";
+    }
+    result += "]\n";
+
+    result += "  Precision: " + std::string((precision == Float32) ? "Float32" : "Int8") + "\n";
+
+    result += "  Stride: [";
+    for (size_t i = 0; i < stride.size(); i++) {
+        result += std::to_string(stride[i]);
+        if (i < stride.size() - 1) result += ", ";
+    }
+    result += "]\n";
+
+    result += "  Storage Size: " + std::to_string(storage.size()) + " elements\n";
+
     return result;
 };

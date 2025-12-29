@@ -42,13 +42,17 @@ void MatMulOp::execute() {
     if (backend == CPU) {
         // inline CPU for convenience
         // assume 2 dimensions for now
+
         for (size_t i = 0; i < output->dimension.at(0); i++) {
             for (size_t j = 0; j < output->dimension.at(1); j++) {
-                // rhs->dimension.at(1) refers to the output column
                 for (size_t k = 0; k < rhs->dimension.at(1); k++) {
-                    // ith row and jth column accumulate
-                    float newValue = lhs->getValue({i, k}) * rhs->getValue({k, j}) + output->getValue({i,j});
-                    output->setValue({i,j}, newValue);
+
+                    float lhs_val = lhs->getValue({i, k});
+                    float rhs_val = rhs->getValue({k, j});
+                    float curr_val = output->getValue({i, j});
+                    float newValue = lhs_val * rhs_val + curr_val;
+                    
+                    output->setValue({i, j}, newValue);
                 }
             }
         }
@@ -91,8 +95,11 @@ void ReluOp::execute() {
         for (size_t i = 0; i < output->dimension.at(0); i++) {
             for (size_t j = 0; j < output->dimension.at(1); j++) {
                 if (input->getValue({i, j}) < 0) {
-                    std::cout << input->getValue({i, j});
+                    // update output value to zero
                     output->setValue({i, j}, 0);
+                } else {
+                    // set output value to be same as input
+                    output->setValue({i,j}, input->getValue({i, j}));
                 }
             }
         }

@@ -31,6 +31,7 @@ public:
     void setValue(std::vector<size_t> index, float value);
     void changePrecision(Precision p);
     std::string print();
+    std::string printVerbose();
 };
 
 #endif
