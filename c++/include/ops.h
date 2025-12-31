@@ -4,7 +4,7 @@
 #include <vector>
 #include <any>
 #include <string>
-
+#include <memory>
 #include "types.h"
 
 enum Backend {
@@ -69,6 +69,30 @@ public:
     std::string print() override;
     void execute() override;
 };
+
+class QuantizationOp : public Op {
+public:
+    std::shared_ptr<Tensor> input;
+    std::shared_ptr<Tensor> output;
+    Precision precision;
+    QuantizationOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o) : input(i), output(o) {}
+
+    bool verify() override;
+    std::string print() override;
+    void execute() override;
+};
+
+class DequantizationOp : public Op {
+public:
+    std::shared_ptr<Tensor> input;
+    std::shared_ptr<Tensor> output;
+    DequantizationOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o) : input(i), output(o) {}
+
+    bool verify() override;
+    std::string print() override;
+    void execute() override;
+};
+
 
 class MSEOp : public Op {
 public:

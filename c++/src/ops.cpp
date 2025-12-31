@@ -1,12 +1,17 @@
 #include "../include/ops.h"
 
 // compile flag to state if we have a GPU
-// Not included in compilation if CUDA is not recognized
+// not included in compilation if CUDA is not recognized
+// used in other places as well
 #ifdef CUDA_FOUND
 #include "../include/gpu_exec.h"
 #endif
 
 #include <iostream>
+#include <limits>
+#include <algorithm>
+#include <stdexcept>
+#include <cmath>
 
 int Op::setBackend(Backend b) {
     this->backend = b;
@@ -25,13 +30,129 @@ void ConstOp::execute() {
     return;
 };
 
+bool QuantizationOp::verify() {
+    // check if they are not the same size or equal to one
+    if (input->dimension.size() != output->dimension.size() || input->dimension.size()  == 1) {
+        return false;
+    }
+
+    // check dimensions are the same
+    for (int i = 0; i < input->dimension.size(); i++) {
+        if (input->dimension[i] != output->dimension[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+std::string QuantizationOp::print() {
+    return "QuantizationOp(input: " + input->print() + " → " + output->print() + ")";
+}
+
+void QuantizationOp::execute() {
+    if (backend == CPU) {
+        // find max and min in tensor
+        float x_max = -std::numeric_limits<float>::infinity();
+        float x_min = std::numeric_limits<float>::infinity();
+        
+        for (float element : input->storage) {
+            if (element > x_max) {
+                x_max = element;
+            }
+            if (element < x_min) {
+                x_min = element;
+            }
+        }
+
+        // get absolute values
+        float abs_x_min, abs_x_max;
+        if (x_min < 0) {
+            abs_x_min = x_min * -1;
+        }
+
+        if (x_max < 0) {
+            abs_x_max = x_max * -1;
+        }
+        
+        // get alpha beta values
+        // largest and smallest numbers supported by each data type
+        int alpha, beta;
+        if (precision == Float16) {
+            int alpha = 65504;
+            int beta = -65504;
+        } else if (precision == Int8) {
+            int alpha = 127;
+            int beta = -127;
+        } else {
+            throw std::invalid_argument("Precision not supported");
+        }
+        
+        float s = (std::max(abs_x_min, abs_x_max) * 2) / (beta - alpha);
+        for (int i = 0; i < input->storage.size(); i++) {
+            float new_element = std::round(input->storage.at(i) / s);
+
+            // clipping
+            if (new_element > alpha) {
+                new_element = alpha;
+            }
+            if (new_element < beta) {
+                new_element = beta;
+            }
+
+            output->storage.at(i) = new_element;
+        }
+    } else {
+        // compile flag to state if we have a GPU
+        // GPU function is not compiled if CUDA is not recognized
+        #ifdef CUDA_FOUND
+            // Get the memory address for the first element
+            float* h_C = &(output->storage[0]);
+            float* h_A = &(lhs->storage[0]);
+            float* h_B = &(rhs->storage[0]);
+            quantization(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    }
+    
+    return;
+}
+
+bool DequantizationOp::verify() {
+    // check if they are not the same size or equal to one
+    if (input->dimension.size() != output->dimension.size() || input->dimension.size()  == 1) {
+        return false;
+    }
+
+    // check dimensions are the same
+    for (int i = 0; i < input->dimension.size(); i++) {
+        if (input->dimension[i] != output->dimension[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+std::string DequantizationOp::print() {
+    return "QuantizationOp(input: " + input->print() + " → " + output->print() + ")";
+}
+
+void DequantizationOp::execute() {
+    return;
+}
 
 bool MatMulOp::verify() {
     if (lhs->dimension.size() == 1 || rhs->dimension.size() == 1) {
         return false;
     }
+    
+    if (lhs->dimension[lhs->dimension.size() - 1] == rhs->dimension[rhs->dimension.size() - 2]) {
 
-    return lhs->dimension[lhs->dimension.size() - 1] == rhs->dimension[rhs->dimension.size() - 2];
+    }
+
+    return;
 };
 
 std::string MatMulOp::print() {
@@ -57,14 +178,11 @@ void MatMulOp::execute() {
             }
         }
     } else {
-        // compile flag to state if we have a GPU
-        // GPU function is not compiled if CUDA is not recognized
         #ifdef CUDA_FOUND
-        // Get the memory address for the first element
-        float* h_C = &(output->storage[0]);
-        float* h_A = &(lhs->storage[0]);
-        float* h_B = &(rhs->storage[0]);
-        matmul(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
+            float* h_C = &(output->storage[0]);
+            float* h_A = &(lhs->storage[0]);
+            float* h_B = &(rhs->storage[0]);
+            matmul(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -72,7 +190,8 @@ void MatMulOp::execute() {
 };
 
 bool ReluOp::verify() {
-    if (input->dimension.size() != output->dimension.size()) {
+    // check if they are not the same size or equal to one
+    if (input->dimension.size() != output->dimension.size() || input->dimension.size()  == 1) {
         return false;
     }
 
@@ -104,14 +223,11 @@ void ReluOp::execute() {
             }
         }
     } else {
-        // compile flag to state if we have a GPU
-        // GPU function is not compiled if CUDA is not recognized
         #ifdef CUDA_FOUND
-        float* h_input = &(input->storage[0]);
-        float* h_output = &(output->storage[0]);
-        int size = input->storage.size();
-
-        relu(h_output, h_input, size);
+            float* h_input = &(input->storage[0]);
+            float* h_output = &(output->storage[0]);
+            int size = input->storage.size();
+            relu(h_output, h_input, size);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -184,15 +300,13 @@ void MSEOp::execute() {
             }
         }
     } else {
-        // compile flag to state if we have a GPU
-        // GPU function is not compiled if CUDA is not recognized
         #ifdef CUDA_FOUND
-        float* h_output = &(output->storage[0]);
-        float* h_input = &(input->storage[0]);
-        float* h_ground_truth = &(ground_truth->storage[0]);
-        int size = input->storage.size();
+            float* h_output = &(output->storage[0]);
+            float* h_input = &(input->storage[0]);
+            float* h_ground_truth = &(ground_truth->storage[0]);
+            int size = input->storage.size();
 
-        MSE(h_output, h_input, h_ground_truth, size);
+            MSE(h_output, h_input, h_ground_truth, size);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
