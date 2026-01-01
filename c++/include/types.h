@@ -6,6 +6,7 @@
 
 enum Precision {
     Int8,
+    Float16,
     Float32
 };
 

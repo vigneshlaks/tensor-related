@@ -32,7 +32,7 @@ void ConstOp::execute() {
 
 bool QuantizationOp::verify() {
     // check if they are not the same size or equal to one
-    if (input->dimension.size() != output->dimension.size() || input->dimension.size()  == 1) {
+    if (input->dimension.size() != output->dimension.size() || input->dimension.size() == 1) {
         return false;
     }
 
@@ -85,7 +85,7 @@ void QuantizationOp::execute() {
             int alpha = 127;
             int beta = -127;
         } else {
-            throw std::invalid_argument("Precision not supported");
+            throw std::invalid_argument("Specified Precision not supported");
         }
         
         float s = (std::max(abs_x_min, abs_x_max) * 2) / (beta - alpha);
@@ -103,8 +103,6 @@ void QuantizationOp::execute() {
             output->storage.at(i) = new_element;
         }
     } else {
-        // compile flag to state if we have a GPU
-        // GPU function is not compiled if CUDA is not recognized
         #ifdef CUDA_FOUND
             // Get the memory address for the first element
             float* h_C = &(output->storage[0]);

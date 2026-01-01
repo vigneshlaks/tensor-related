@@ -1,31 +1,55 @@
-[
-  {
-    "id": "input",
-    "op": "const",
-    "value": [1, 2],
-    "dim": [1, 2]
+{
+  "metadata": {
+    "passes": [
+      {
+        "type": "backend",
+        "config": {
+          "backend": "cpu"
+        }
+      },
+      {
+        "type": "fusion",
+        "config": {
+          "enabled": true
+        }
+      },
+      {
+        "type": "precision",
+        "config": {
+          "precision": "fp32"
+        }
+      }
+    ]
   },
-  {
-    "id": "w1",
-    "op": "const",
-    "value": [1, 2, 3, 4],
-    "dim": [2, 2]
-  },
-  {
-    "id": "pre_activated",
-    "op": "matmul",
-    "args": ["input", "w1"]
-  },
-  {
-    "id": "y_hat",
-    "op": "relu",
-    "args": ["pre_activated"]
-  },
-  {
-    "id": "mse",
-    "op": "mse_loss",
-    "value": [6, 9],
-    "dim": [1, 2],
-    "args": ["y_hat"]
-  }
-]
+  "inputs": [
+    {
+      "id": "input",
+      "op": "const",
+      "value": [1, 2],
+      "dim": [1, 2]
+    },
+    {
+      "id": "w1",
+      "op": "const",
+      "value": [1, 2, 3, 4],
+      "dim": [2, 2]
+    },
+    {
+      "id": "pre_activated",
+      "op": "matmul",
+      "args": ["input", "w1"]
+    },
+    {
+      "id": "y_hat",
+      "op": "relu",
+      "args": ["pre_activated"]
+    },
+    {
+      "id": "mse",
+      "op": "mse_loss",
+      "value": [5, 4],
+      "dim": [1, 2],
+      "args": ["y_hat"]
+    }
+  ]
+}

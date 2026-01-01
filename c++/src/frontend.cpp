@@ -1,7 +1,9 @@
 
 #include "../include/frontend.h"
+#include "../include/passes.h"
 #include <map>
 #include <iostream>
+#include <functional>
 
 // TODO
 int parseBytecode()
@@ -9,7 +11,43 @@ int parseBytecode()
     return 0;
 };
 
-ComputeGraph parseJSON(json instrs)
+Metadata parseMetaData(json inputIR) {
+    Metadata meta;
+
+    if (!inputIR.contains("metadata") || !inputIR["metadata"].contains("passes")) {
+        return meta;
+    }
+
+    std::map<std::string, Backend> backendMap = {
+        {"cpu", Backend::CPU},
+        {"gpu", Backend::GPU}
+    };
+
+    std::map<std::string, Precision> precisionMap = {
+        {"fp16", Float16},
+        {"fp32", Float32},
+        {"int8", Int8}
+    };
+
+    for (auto& pass : inputIR["metadata"]["passes"]) {
+        std::string type = pass["type"];
+        json config = pass["config"];
+
+        if (type == "backend") {
+            meta.passes.push_back(new BackendPass(backendMap[config["backend"]]));
+        } else if (type == "fusion") {
+            meta.passes.push_back(new FusionPass());
+        } else if (type == "precision") {
+            meta.passes.push_back(new PrecisionPass(precisionMap[config["precision"]]));
+        } else if (type == "quantization") {
+            meta.passes.push_back(new QuantizationPass(precisionMap[config["precision"]]));
+        }
+    }
+
+    return meta;
+}
+
+LinkedList parseInputs(json instrs)
 {
     Node* head = nullptr;
 
@@ -30,8 +68,7 @@ ComputeGraph parseJSON(json instrs)
         {"mse_loss", OpType::MSE}
     };
 
-    for (json instr : instrs)
-    {
+    for (json instr : instrs) {
         std::string id = instr["id"].get<std::string>();
 
         curr->id = id;
@@ -96,8 +133,8 @@ ComputeGraph parseJSON(json instrs)
         nodeMap};
 }
 
-// TODO make a better version of this and add graph viz
-void printComputeGraph(ComputeGraph cgraph)
+// TODO make a better version of this and add visualization
+void printLinkedList(LinkedList ll)
 {
     std::map<OpType, std::string> opNames = {
         {OpType::Const, "Const"},
@@ -107,9 +144,9 @@ void printComputeGraph(ComputeGraph cgraph)
         {OpType::MSE, "MSE"}
     };
 
-    std::cout << "Graph (" << cgraph.nodeMap.size() << " nodes):" << std::endl;
+    std::cout << "LinkedList (" << ll.nodeMap.size() << " nodes):" << std::endl;
 
-    Node* curr = cgraph.head;
+    Node* curr = ll.head;
     while (curr != nullptr && !curr->id.empty()) {
         std::cout << "  " << curr->id << " [" << opNames[curr->opType] << "]";
 
@@ -135,6 +172,3 @@ void printComputeGraph(ComputeGraph cgraph)
         curr = curr->next;
     }
 }
-
-// void printNode() {
-// }

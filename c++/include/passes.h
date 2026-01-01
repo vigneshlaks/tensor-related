@@ -10,28 +10,38 @@
 class Pass {
 public:
     virtual ~Pass() = default;
-    virtual int globalApply(ComputeGraph* graph) = 0;
-    virtual int localApply(ComputeGraph* graph) = 0;
+    virtual int globalApply(LinkedList* list) = 0;
+    virtual int localApply(LinkedList* list) = 0;
 };
 
 // fuse operations
 class FusionPass : public Pass {
 private:
     bool canFuse(Node *first, Node *second);
-    void fuseNodes(ComputeGraph *graph, Node *first, Node *second);
+    void fuseNodes(LinkedList *list, Node *first, Node *second);
 public:
-    int globalApply(ComputeGraph* graph) override;
-    int localApply(ComputeGraph* graph) override;
+    int globalApply(LinkedList* list) override;
+    int localApply(LinkedList* list) override;
 };
 
 // change precision
+class PrecisionPass : public Pass {
+private:
+    Precision precision;
+public:
+    PrecisionPass(Precision p) : precision(p) {};
+    int globalApply(LinkedList* list) override;
+    int localApply(LinkedList* list) override;
+};
+
+// add in quantization operation
 class QuantizationPass : public Pass {
 private:
     Precision precision;
 public:
     QuantizationPass(Precision p) : precision(p) {};
-    int globalApply(ComputeGraph* graph) override;
-    int localApply(ComputeGraph* graph) override;
+    int globalApply(LinkedList* list) override;
+    int localApply(LinkedList* list) override;
 };
 
 // choose a backend (cpu or gpu)
@@ -40,17 +50,17 @@ private:
     Backend backend;
 public:
     BackendPass(Backend b) : backend(b) {}
-    int globalApply(ComputeGraph* graph) override;
-    int localApply(ComputeGraph* graph) override;
+    int globalApply(LinkedList* list) override;
+    int localApply(LinkedList* list) override;
 };
 
 class PassManager
 {
 private:
-    ComputeGraph* computeGraph;
+    LinkedList* linkedList;
     std::vector<Pass*> passes;
 public:
-    PassManager(ComputeGraph* cg, std::vector<Pass*> p) : computeGraph(cg), passes(p) {};
+    PassManager(LinkedList* cg, std::vector<Pass*> p) : linkedList(cg), passes(p) {};
     void registerPass(Pass *pass);
 
     void runLocal();

@@ -10,7 +10,7 @@ Tensor::Tensor(std::vector<size_t> d) : dimension(d) {
     }
 
     storage.resize(totalSize, 0.0f);
-}
+};
 
 Tensor::Tensor(std::vector<size_t> d, std::vector<float> s) : dimension(d), storage(s) {
     fillStride();
@@ -46,7 +46,9 @@ void Tensor::setValue(std::vector<size_t> index, float value) {
 
     // bounds check
     for (int i = 0; i < dimension.size(); i++) {
-        dimension[i];
+        if (index[i] > dimension[i]) {
+            throw std::invalid_argument("Invalid Index Array");
+        }
     }
 
     for (int i = 0; i < dimension.size(); i++) {

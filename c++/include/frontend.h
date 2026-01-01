@@ -27,16 +27,24 @@ struct Node {
     Node* next;
 };
 
-struct ComputeGraph {
+struct LinkedList {
     // just store the head for inference
     Node* head;
     std::unordered_map<std::string, Node*> nodeMap;
 };
 
+class Pass;
+
+struct Metadata {
+    std::vector<Pass*> passes;
+};
+
 int parseBytecode();
 
-ComputeGraph parseJSON(json inputIR);
+LinkedList parseJSON(json inputIR);
 
-void printComputeGraph(ComputeGraph cgraph);
+Metadata parseMetaData(json inputIR);
+
+void printLinkedList(LinkedList ll);
 
 #endif

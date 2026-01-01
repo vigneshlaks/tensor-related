@@ -13,12 +13,12 @@ int main() {
         json inputIR;
         file >> inputIR;
 
-        ComputeGraph graph = parseJSON(inputIR);
+        LinkedList list = parseJSON(inputIR);
         std::cout << "Before optimization:" << std::endl;
-        printComputeGraph(graph);
+        printLinkedList(list);
 
         std::vector<Pass*> passes;
-        PassManager pm(&graph, passes);
+        PassManager pm(&list, passes);
 
         BackendPass bp(Backend::CPU);
         pm.registerPass(&bp);
@@ -29,25 +29,25 @@ int main() {
         // Precision p = Int8;
         // QuantizationPass qp(p);
         // pm.registerPass(&qp);
+
+        QuantizationPass
         
         pm.runGlobal();
 
         std::cout << "\nAfter optimization:" << std::endl;
-        printComputeGraph(graph);
+        printLinkedList(list);
 
-        Node* current = graph.head;
+        Node* current = list.head;
         while (current != nullptr) {
-            if (current->operation != nullptr) {
-                current->operation->execute();
-            }
+            current->operation->execute();
             current = current->next;
         }
 
         std::cout << "\nExecution complete!" << std::endl;
 
         std::cout << "\nFinal Results:" << std::endl;
-            
-        current = graph.head;
+
+        current = list.head;
         while (current != nullptr) {
             if (current->output != nullptr) {
                 std::cout << current->id << ": ";

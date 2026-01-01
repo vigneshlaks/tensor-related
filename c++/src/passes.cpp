@@ -2,20 +2,20 @@
 #include <iostream>
 #include <algorithm> 
 
-int FusionPass::globalApply(ComputeGraph* graph) {
+int FusionPass::globalApply(LinkedList* list) {
     int fusionCount = 0;
 
-    if (!graph || !graph->head) {
+    if (!list || !list->head) {
         return 0;
     }
 
-    Node* current = graph->head;
+    Node* current = list->head;
 
     while (current != nullptr && current->next != nullptr) {
         Node* next = current->next;
 
         if (canFuse(current, next)) {
-            fuseNodes(graph, current, next);
+            fuseNodes(list, current, next);
             fusionCount++;
 
             if (current->next != nullptr) {
@@ -44,7 +44,7 @@ bool FusionPass::canFuse(Node* first, Node* second) {
 };
 
 // backend is associated with first node's backend
-void FusionPass::fuseNodes(ComputeGraph* graph, Node* first, Node* second) {
+void FusionPass::fuseNodes(LinkedList* list, Node* first, Node* second) {
     // first and second node
     Node* newPrev = first->prev;
     Node* newNext = second->next;
@@ -70,7 +70,7 @@ void FusionPass::fuseNodes(ComputeGraph* graph, Node* first, Node* second) {
             newPrev->next = fusedNode;
         } else {
             // implies we're the new head
-            graph->head = fusedNode;
+            list->head = fusedNode;
         }
 
         if (newNext != nullptr) {
@@ -80,24 +80,24 @@ void FusionPass::fuseNodes(ComputeGraph* graph, Node* first, Node* second) {
         fusedNode->prev = newPrev;
 
         // get rid of old nodes
-        graph->nodeMap.erase(first->id);
-        graph->nodeMap.erase(second->id);
+        list->nodeMap.erase(first->id);
+        list->nodeMap.erase(second->id);
         delete first;
         delete second;
 
         // add to map
-        graph->nodeMap[fusedNode->id] = fusedNode;
+        list->nodeMap[fusedNode->id] = fusedNode;
     } else {
         throw std::invalid_argument("Unsupport Node Fusion");
     }
 };
 
-int FusionPass::localApply(ComputeGraph* graph) {
+int FusionPass::localApply(LinkedList* list) {
     return 0;
 };
 
-int QuantizationPass::globalApply(ComputeGraph* graph) {
-    Node* current = graph->head;
+int PrecisionPass::globalApply(LinkedList* list) {
+    Node* current = list->head;
 
     while (current != nullptr) {
         if (current->opType == Matmul) {
@@ -114,14 +114,31 @@ int QuantizationPass::globalApply(ComputeGraph* graph) {
         current = current->next;
     }
     return 0;
-}
+};
 
-int QuantizationPass::localApply(ComputeGraph* graph) {
+int PrecisionPass::localApply(LinkedList* list) {
     return 0;
 };
 
-int BackendPass::globalApply(ComputeGraph* graph) {
-    Node* current = graph->head;
+int QuantizationPass::globalApply(LinkedList* list) {
+    Node* current = list->head;
+
+    // add in quantization node here
+    do
+    while (current != nullptr) {
+
+    }
+
+    // add in another one in the end
+};
+
+int QuantizationPass::localApply(LinkedList* list) {
+
+};
+
+
+int BackendPass::globalApply(LinkedList* list) {
+    Node* current = list->head;
 
     while (current != nullptr) {
         // const has null operation
@@ -136,7 +153,7 @@ int BackendPass::globalApply(ComputeGraph* graph) {
     return 0;
 }
 
-int BackendPass::localApply(ComputeGraph* graph) {
+int BackendPass::localApply(LinkedList* list) {
     return 0;
 };
 
@@ -147,7 +164,7 @@ void PassManager::registerPass(Pass* pass) {
 // run global runs full optimization one by one
 void PassManager::runGlobal() {
     for (Pass* pass : passes) {
-       pass->globalApply(computeGraph);
+       pass->globalApply(linkedList);
     }
 };
 
