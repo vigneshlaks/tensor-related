@@ -92,10 +92,6 @@ void FusionPass::fuseNodes(LinkedList* list, Node* first, Node* second) {
     }
 };
 
-int FusionPass::localApply(LinkedList* list) {
-    return 0;
-};
-
 int PrecisionPass::globalApply(LinkedList* list) {
     Node* current = list->head;
 
@@ -116,26 +112,81 @@ int PrecisionPass::globalApply(LinkedList* list) {
     return 0;
 };
 
-int PrecisionPass::localApply(LinkedList* list) {
-    return 0;
-};
-
 int QuantizationPass::globalApply(LinkedList* list) {
-    Node* current = list->head;
-
-    // add in quantization node here
-    do
-    while (current != nullptr) {
-
+    Node* firstNode = list->head;
+    if (firstNode->opType != Const) {
+        return 0;
     }
 
-    // add in another one in the end
-};
+    Node* quantNode = new Node();
+    quantNode->id = firstNode->id + "_quantized";
+    quantNode->opType = Const;
 
-int QuantizationPass::localApply(LinkedList* list) {
+    std::shared_ptr<Tensor> input = firstNode->output;
 
-};
+    quantNode->output = input;
+    quantNode->operation = std::make_unique<QuantizationOp>(input, input);
+    QuantizationOp* quantOp = dynamic_cast<QuantizationOp*>(quantNode->operation.get());
+    quantOp->precision = precision;
 
+    // Use same backend as next node
+    if (firstNode->next && firstNode->next->operation) {
+        quantOp->backend = firstNode->next->operation->backend;
+    }
+
+    // Place in node between first and next
+    Node* nextNode = firstNode->next;
+    firstNode->next = quantNode;
+    quantNode->prev = firstNode;
+    quantNode->next = nextNode;
+    if (nextNode) {
+        nextNode->prev = quantNode;
+    }
+
+    // Add to nodemap
+    list->nodeMap[quantNode->id] = quantNode;
+
+    // We need to dequantize before computing the loss
+    Node* lastComputeNode = list->head;
+    while (lastComputeNode->next != nullptr && !lastComputeNode->next->id.empty()) {
+        if (lastComputeNode->next->opType == MSE) {
+            break;
+        }
+        lastComputeNode = lastComputeNode->next;
+    }
+
+    // Insert dequantization node before loss if loss exists
+    if (lastComputeNode && lastComputeNode->next && lastComputeNode->next->opType == MSE) {
+        Node* dequantNode = new Node();
+        dequantNode->id = lastComputeNode->id + "_dequantized";
+        dequantNode->opType = OpType::Const;
+
+        // Dequantization is done in-place (same as quantization for consistency)
+        std::shared_ptr<Tensor> output = lastComputeNode->output;
+
+        // Pass quantOp pointer so dequantization can access the scale factor
+        dequantNode->output = output;
+        dequantNode->operation = std::make_unique<DequantizationOp>(output, output, quantOp);
+        DequantizationOp* dequantOp = dynamic_cast<DequantizationOp*>(dequantNode->operation.get());
+
+        // Use same backend as previous node
+        if (lastComputeNode->operation) {
+            dequantOp->backend = lastComputeNode->operation->backend;
+        }
+
+        // Place in node
+        Node* mseNode = lastComputeNode->next;
+        lastComputeNode->next = dequantNode;
+        dequantNode->prev = lastComputeNode;
+        dequantNode->next = mseNode;
+        mseNode->prev = dequantNode;
+        
+        // Register the dequantization node in the map
+        list->nodeMap[dequantNode->id] = dequantNode;
+    }
+
+    return 1;
+}
 
 int BackendPass::globalApply(LinkedList* list) {
     Node* current = list->head;
@@ -153,10 +204,6 @@ int BackendPass::globalApply(LinkedList* list) {
     return 0;
 }
 
-int BackendPass::localApply(LinkedList* list) {
-    return 0;
-};
-
 void PassManager::registerPass(Pass* pass) {
     passes.push_back(pass);
 };
@@ -166,13 +213,6 @@ void PassManager::runGlobal() {
     for (Pass* pass : passes) {
        pass->globalApply(linkedList);
     }
-};
-
-// TODO run local will run the local optimizations for all the passes
-// one sequential pass instead of multiple
-// fusion collapses nodes so it's harder
-void PassManager::runLocal() {
-    return;
 };
 
 bool PassManager::verify() {

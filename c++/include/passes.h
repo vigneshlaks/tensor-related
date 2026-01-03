@@ -11,7 +11,6 @@ class Pass {
 public:
     virtual ~Pass() = default;
     virtual int globalApply(LinkedList* list) = 0;
-    virtual int localApply(LinkedList* list) = 0;
 };
 
 // fuse operations
@@ -21,7 +20,6 @@ private:
     void fuseNodes(LinkedList *list, Node *first, Node *second);
 public:
     int globalApply(LinkedList* list) override;
-    int localApply(LinkedList* list) override;
 };
 
 // change precision
@@ -31,7 +29,6 @@ private:
 public:
     PrecisionPass(Precision p) : precision(p) {};
     int globalApply(LinkedList* list) override;
-    int localApply(LinkedList* list) override;
 };
 
 // add in quantization operation
@@ -41,7 +38,6 @@ private:
 public:
     QuantizationPass(Precision p) : precision(p) {};
     int globalApply(LinkedList* list) override;
-    int localApply(LinkedList* list) override;
 };
 
 // choose a backend (cpu or gpu)
@@ -51,7 +47,6 @@ private:
 public:
     BackendPass(Backend b) : backend(b) {}
     int globalApply(LinkedList* list) override;
-    int localApply(LinkedList* list) override;
 };
 
 class PassManager
@@ -63,7 +58,6 @@ public:
     PassManager(LinkedList* cg, std::vector<Pass*> p) : linkedList(cg), passes(p) {};
     void registerPass(Pass *pass);
 
-    void runLocal();
     void runGlobal();
     bool verify();
 };

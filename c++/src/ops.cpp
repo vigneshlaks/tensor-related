@@ -55,7 +55,7 @@ void QuantizationOp::execute() {
         // find max and min in tensor
         float x_max = -std::numeric_limits<float>::infinity();
         float x_min = std::numeric_limits<float>::infinity();
-        
+
         for (float element : input->storage) {
             if (element > x_max) {
                 x_max = element;
@@ -65,32 +65,23 @@ void QuantizationOp::execute() {
             }
         }
 
-        // get absolute values
-        float abs_x_min, abs_x_max;
-        if (x_min < 0) {
-            abs_x_min = x_min * -1;
-        }
+        float abs_x_min = std::abs(x_min);
+        float abs_x_max = std::abs(x_max);
 
-        if (x_max < 0) {
-            abs_x_max = x_max * -1;
-        }
-        
-        // get alpha beta values
-        // largest and smallest numbers supported by each data type
         int alpha, beta;
         if (precision == Float16) {
-            int alpha = 65504;
-            int beta = -65504;
+            alpha = 65504;
+            beta = -65504;
         } else if (precision == Int8) {
-            int alpha = 127;
-            int beta = -127;
+            alpha = 127;
+            beta = -127;
         } else {
             throw std::invalid_argument("Specified Precision not supported");
         }
-        
-        float s = (std::max(abs_x_min, abs_x_max) * 2) / (beta - alpha);
+
+        scale = (std::max(abs_x_min, abs_x_max) * 2) / (alpha - beta);
         for (int i = 0; i < input->storage.size(); i++) {
-            float new_element = std::round(input->storage.at(i) / s);
+            float new_element = std::round(input->storage.at(i) / scale);
 
             // clipping
             if (new_element > alpha) {
@@ -113,13 +104,13 @@ void QuantizationOp::execute() {
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
     }
-    
+
     return;
 }
 
 bool DequantizationOp::verify() {
     // check if they are not the same size or equal to one
-    if (input->dimension.size() != output->dimension.size() || input->dimension.size()  == 1) {
+    if (input->dimension.size() != output->dimension.size() || input->dimension.size() == 1) {
         return false;
     }
 
@@ -138,19 +129,22 @@ std::string DequantizationOp::print() {
 }
 
 void DequantizationOp::execute() {
-    return;
+    if (backend == CPU) {
+        float scale = (quantOp != nullptr) ? quantOp->scale : 1.0f;
+        for (int i = 0; i < input->storage.size(); i++) {
+            output->storage.at(i) = input->storage.at(i) * scale;
+        }
+    } else {
+        throw std::runtime_error("GPU Implementation Not Supported");
+    }
 }
 
 bool MatMulOp::verify() {
     if (lhs->dimension.size() == 1 || rhs->dimension.size() == 1) {
         return false;
     }
-    
-    if (lhs->dimension[lhs->dimension.size() - 1] == rhs->dimension[rhs->dimension.size() - 2]) {
 
-    }
-
-    return;
+    return lhs->dimension[lhs->dimension.size() - 1] == rhs->dimension[rhs->dimension.size() - 2];
 };
 
 std::string MatMulOp::print() {
@@ -161,16 +155,15 @@ void MatMulOp::execute() {
     if (backend == CPU) {
         // inline CPU for convenience
         // assume 2 dimensions for now
-
         for (size_t i = 0; i < output->dimension.at(0); i++) {
             for (size_t j = 0; j < output->dimension.at(1); j++) {
-                for (size_t k = 0; k < rhs->dimension.at(1); k++) {
-
+                // rhs->dimension.at(0) refers to the intermediate column
+                for (size_t k = 0; k < rhs->dimension.at(0); k++) {
                     float lhs_val = lhs->getValue({i, k});
                     float rhs_val = rhs->getValue({k, j});
                     float curr_val = output->getValue({i, j});
                     float newValue = lhs_val * rhs_val + curr_val;
-                    
+
                     output->setValue({i, j}, newValue);
                 }
             }
@@ -189,12 +182,12 @@ void MatMulOp::execute() {
 
 bool ReluOp::verify() {
     // check if they are not the same size or equal to one
-    if (input->dimension.size() != output->dimension.size() || input->dimension.size()  == 1) {
+    if (input->dimension.size() != output->dimension.size() || input->dimension.size() == 1) {
         return false;
     }
 
     // check same shape
-    for (int i=0; i < input->dimension.size(); i++) {
+    for (int i = 0; i < input->dimension.size(); i++) {
         if (input->dimension[i] != output->dimension[i]) {
             return false;
         }
@@ -216,7 +209,7 @@ void ReluOp::execute() {
                     output->setValue({i, j}, 0);
                 } else {
                     // set output value to be same as input
-                    output->setValue({i,j}, input->getValue({i, j}));
+                    output->setValue({i, j}, input->getValue({i, j}));
                 }
             }
         }
@@ -232,7 +225,7 @@ void ReluOp::execute() {
     }
 };
 
-bool MatMulReluOp::verify(){
+bool MatMulReluOp::verify() {
     return lhs->dimension[lhs->dimension.size() - 1] == rhs->dimension[rhs->dimension.size() - 2];
 };
 
@@ -246,10 +239,10 @@ void MatMulReluOp::execute() {
         // assume 2 dimensions for now
         for (size_t i = 0; i < output->dimension.at(0); i++) {
             for (size_t j = 0; j < output->dimension.at(1); j++) {
-                // rhs->dimension.at(1) refers to the output column
-                for (size_t k = 0; k < rhs->dimension.at(1); k++) {
+                // rhs->dimension.at(0) refers to the intermediate column
+                for (size_t k = 0; k < rhs->dimension.at(0); k++) {
                     // ith row and jth column accumulate
-                    float newValue = lhs->getValue({i, k}) * rhs->getValue({k, j}) + output->getValue({i,j});
+                    float newValue = lhs->getValue({i, k}) * rhs->getValue({k, j}) + output->getValue({i, j});
                     output->setValue({i, j}, newValue);
                 }
 
@@ -270,13 +263,13 @@ void MatMulReluOp::execute() {
     }
 };
 
-bool MSEOp::verify(){
+bool MSEOp::verify() {
     if (input->dimension.size() != output->dimension.size() || input->dimension.size() != ground_truth->dimension.size()) {
         return false;
     }
 
     // check same shape
-    for (int i=0; i < input->dimension.size(); i++) {
+    for (int i = 0; i < input->dimension.size(); i++) {
         if (input->dimension[i] != output->dimension[i] || input->dimension[i] != ground_truth->dimension[i]) {
             return false;
         }
@@ -310,4 +303,3 @@ void MSEOp::execute() {
         #endif
     }
 };
-

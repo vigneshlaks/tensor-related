@@ -18,10 +18,16 @@
         "config": {
           "precision": "fp32"
         }
+      },
+      {
+        "type": "quantization",
+        "config": {
+          "precision": "int8"
+        }
       }
     ]
   },
-  "inputs": [
+  "input": [
     {
       "id": "input",
       "op": "const",

@@ -46,7 +46,7 @@ void Tensor::setValue(std::vector<size_t> index, float value) {
 
     // bounds check
     for (int i = 0; i < dimension.size(); i++) {
-        if (index[i] > dimension[i]) {
+        if (index[i] >= dimension[i]) {
             throw std::invalid_argument("Invalid Index Array");
         }
     }

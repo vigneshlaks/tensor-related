@@ -5,9 +5,9 @@
 #include <iostream>
 #include <functional>
 
-// TODO
-int parseBytecode()
-{
+LinkedList parseInputs(json instrs);
+
+int parseBytecode() {
     return 0;
 };
 
@@ -45,6 +45,13 @@ Metadata parseMetaData(json inputIR) {
     }
 
     return meta;
+}
+
+LinkedList parseJSON(json inputIR) {
+    if (inputIR.contains("input")) {
+        return parseInputs(inputIR["input"]);
+    }
+    return parseInputs(inputIR);
 }
 
 LinkedList parseInputs(json instrs)

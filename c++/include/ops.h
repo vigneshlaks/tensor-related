@@ -75,7 +75,8 @@ public:
     std::shared_ptr<Tensor> input;
     std::shared_ptr<Tensor> output;
     Precision precision;
-    QuantizationOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o) : input(i), output(o) {}
+    float scale;
+    QuantizationOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o) : input(i), output(o), scale(1.0f) {}
 
     bool verify() override;
     std::string print() override;
@@ -86,7 +87,8 @@ class DequantizationOp : public Op {
 public:
     std::shared_ptr<Tensor> input;
     std::shared_ptr<Tensor> output;
-    DequantizationOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o) : input(i), output(o) {}
+    QuantizationOp* quantOp;
+    DequantizationOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o, QuantizationOp* qOp = nullptr) : input(i), output(o), quantOp(qOp) {}
 
     bool verify() override;
     std::string print() override;

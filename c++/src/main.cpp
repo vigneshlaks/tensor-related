@@ -13,25 +13,13 @@ int main() {
         json inputIR;
         file >> inputIR;
 
+        Metadata meta = parseMetaData(inputIR);
         LinkedList list = parseJSON(inputIR);
+
         std::cout << "Before optimization:" << std::endl;
         printLinkedList(list);
 
-        std::vector<Pass*> passes;
-        PassManager pm(&list, passes);
-
-        BackendPass bp(Backend::CPU);
-        pm.registerPass(&bp);
-
-        // FusionPass fp;
-        // pm.registerPass(&fp);
-
-        // Precision p = Int8;
-        // QuantizationPass qp(p);
-        // pm.registerPass(&qp);
-
-        QuantizationPass
-        
+        PassManager pm(&list, meta.passes);
         pm.runGlobal();
 
         std::cout << "\nAfter optimization:" << std::endl;
@@ -39,7 +27,10 @@ int main() {
 
         Node* current = list.head;
         while (current != nullptr) {
-            current->operation->execute();
+            std::cout << "Executing: " << current->id << std::endl;
+            if (current->operation != nullptr) {
+                current->operation->execute();
+            }
             current = current->next;
         }
 
