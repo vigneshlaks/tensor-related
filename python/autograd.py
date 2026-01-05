@@ -12,7 +12,7 @@ class Executor:
             "fused__matmul__relu": self.fused_matmul_relu_exec,
             "mse_loss": self.mse_loss_exec,
         }
-    
+
     def relu_exec(self, x):
         return np.maximum(0, x)
 
@@ -24,7 +24,7 @@ class Executor:
 
     def mse_loss_exec(self, input):
         return (input - GROUND_TRUTH) ** 2
-    
+
     def launch(self, op, args):
         # probably unideal wtv for now
         args = [arg if isinstance(arg, np.ndarray) else np.array(arg, dtype=np.float64) for arg in args]
@@ -41,12 +41,11 @@ def forward(instrs):
             # execute the operation
             res = exec.launch(instr["op"], inputs)
             # save for rest of forward
-            values[instr["var_name"]] = res
+            values[instr["id"]] = res
             # place in json itself to reference during backward
-            instr["output"] = res
             instr["input_values"] = inputs
         elif instr["op"] == "const":
-            values[instr["var_name"]] = np.array(instr["value"])
+            values[instr["id"]] = np.array(instr["value"])
         else:
             raise ValueError(f"{instr['op']} is not a supported Operation")
     return instrs
@@ -73,13 +72,42 @@ def iterative_backprop(instrs, ground_truth):
             instrs[i]["error"] = delta @ w.T
         else:
             raise ValueError(f"{instrs[i]['op']} is not a supported Operation")
+ 
+def recursive_backprop(instrs, ground_truth):
+    def backprop(index, error):
+        instr = instrs[index]
+        
+        if instr["op"] == "const":
+            return
+        if instr["op"] == "mse_loss":
+            # pred - ground_truth for mse
+            backprop(index - 1, 2 * (instr["input_values"][0] - ground_truth))
+        elif instr["op"] == "relu":
+            # apply deriv to send back w mask
+            input = instr["input_values"][0]
+            new_error = error * (input > 0).astype(int)
+            backprop(index - 1, new_error)
+        elif instr["op"] == "matmul":
+            # input or prev nonlinearity
+            input = instr["input_values"][0]
+            w = instr["input_values"][1]
+            delta = error
+            # grad acc
+            instr["grad"] = np.outer(input, delta)
+            # also send back error
+            backprop(index - 1, delta @ w.T)
+        else:
+            raise ValueError(f"{instr['op']} is not a supported Operation")
+    
+    # dummy error value
+    backprop(len(instrs) - 1, 1)
 
 def descent_step(instrs, lr):
     # build a map of variable names to their const instructions
     const_map = {}
     for instr in instrs:
         if instr["op"] == "const":
-            const_map[instr["var_name"]] = instr
+            const_map[instr["id"]] = instr
 
     for instr in instrs:
         if "grad" in instr:
@@ -92,3 +120,12 @@ def descent_step(instrs, lr):
 
 def backward(instrs):
     return iterative_backprop(instrs, GROUND_TRUTH)
+
+if __name__ == "__main__":
+    with open("1-layer.json", "r") as f:
+        data = json.load(f)
+    
+    forward(data)
+    recursive_backprop(data, GROUND_TRUTH)
+    # iterative_backprop(data, GROUND_TRUTH)
+    print(data)

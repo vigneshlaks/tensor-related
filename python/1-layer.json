@@ -2,14 +2,12 @@
   {
     "id": "input",
     "op": "const",
-    "value": [1, 2],
-    "dim": [2]
+    "value": [1, 2]
   },
   {
     "id": "w1",
     "op": "const",
-    "value": [1, 2, 3, 4],
-    "dim": [2, 2]
+    "value": [[1, 2], [3, 4]]
   },
   {
     "id": "pre_activated",
