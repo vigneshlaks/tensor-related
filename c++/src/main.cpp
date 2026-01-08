@@ -9,7 +9,7 @@
 using json = nlohmann::json;
 
 int main() {
-        std::ifstream file("./ir/1_layer.json");
+        std::ifstream file("irs/two_dimensional/1_layer.json");
         json inputIR;
         file >> inputIR;
 
@@ -29,7 +29,7 @@ int main() {
         while (current != nullptr) {
             std::cout << "Executing: " << current->id << std::endl;
             if (current->operation != nullptr) {
-                current->operation->execute();
+                current->operation->forward();
             }
             current = current->next;
         }
@@ -49,7 +49,6 @@ int main() {
             }
             current = current->next;
         }
-
 
         return 0;
 }

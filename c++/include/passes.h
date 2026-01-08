@@ -31,7 +31,7 @@ public:
     int globalApply(LinkedList* list) override;
 };
 
-// add in quantization operation
+// add in quantization operation(s)
 class QuantizationPass : public Pass {
 private:
     Precision precision;

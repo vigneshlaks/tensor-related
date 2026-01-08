@@ -10,6 +10,7 @@ Tensor::Tensor(std::vector<size_t> d) : dimension(d) {
     }
 
     storage.resize(totalSize, 0.0f);
+    grad.resize(totalSize, 0.0f);
 };
 
 Tensor::Tensor(std::vector<size_t> d, std::vector<float> s) : dimension(d), storage(s) {
@@ -23,6 +24,8 @@ Tensor::Tensor(std::vector<size_t> d, std::vector<float> s) : dimension(d), stor
     if (storage.size() != totalSize) {
         throw std::invalid_argument("Storage and Dimension Can't Be Reconciled");
     }
+
+    grad.resize(totalSize, 0.0f);
 };
 
 // gets the flat index
@@ -56,6 +59,30 @@ void Tensor::setValue(std::vector<size_t> index, float value) {
     }
 
     storage[flatIndex] = value;
+};
+
+float Tensor::getGrad(std::vector<size_t> index) {
+    int flatIndex = 0;
+    for (int i = 0; i < dimension.size(); i++) {
+        flatIndex += index[i] * stride[i];
+    }
+    return grad[flatIndex];
+};
+
+void Tensor::setGrad(std::vector<size_t> index, float value) {
+    int flatIndex = 0;
+    for (int i = 0; i < dimension.size(); i++) {
+        flatIndex += index[i] * stride[i];
+    }
+    grad[flatIndex] = value;
+};
+
+void Tensor::accumulateGrad(std::vector<size_t> index, float value) {
+    int flatIndex = 0;
+    for (int i = 0; i < dimension.size(); i++) {
+        flatIndex += index[i] * stride[i];
+    }
+    grad[flatIndex] += value;
 };
 
 void Tensor::fillStride() {

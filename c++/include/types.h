@@ -20,9 +20,8 @@ public:
     
     std::vector<float> storage = {};
     std::vector<size_t> dimension = {};
-    
-    // stride depict how many elements in storage
-    // are between contiguous elements along a specific dimension
+    std::vector<float> grad = {};
+
     std::vector<size_t> stride = {};
 
     Tensor(std::vector<size_t> dimension);
@@ -30,6 +29,9 @@ public:
 
     float getValue(std::vector<size_t> index);
     void setValue(std::vector<size_t> index, float value);
+    float getGrad(std::vector<size_t> index);
+    void setGrad(std::vector<size_t> index, float value);
+    void accumulateGrad(std::vector<size_t> index, float value);
     void changePrecision(Precision p);
     std::string print();
     std::string printVerbose();

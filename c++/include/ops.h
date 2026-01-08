@@ -7,105 +7,137 @@
 #include <memory>
 #include "types.h"
 
-enum Backend {
+enum Backend
+{
     CPU,
     GPU
 };
 
-class Op {
+
+
+class Op
+{
 public:
     Backend backend = GPU;
     int setBackend(Backend b);
     virtual ~Op() = default;
     virtual bool verify() = 0;
     virtual std::string print() = 0;
-    virtual void execute() = 0;
+    virtual void forward() = 0;
+    virtual void backward() = 0;
 };
 
-class ConstOp : public Op {
+class ConstOp : public Op
+{
 public:
     std::shared_ptr<Tensor> output;
-    ConstOp(std::shared_ptr<Tensor> o) 
+    ConstOp(std::shared_ptr<Tensor> o)
         : output(o) {};
 
     bool verify() override;
     std::string print() override;
-    void execute() override;
+    void forward() override;
+    void backward() override;
 };
 
-class MatMulOp : public Op {
+class MatMulOp : public Op
+{
 public:
     std::shared_ptr<Tensor> lhs;
     std::shared_ptr<Tensor> rhs;
     std::shared_ptr<Tensor> output;
-    MatMulOp(std::shared_ptr<Tensor> left, std::shared_ptr<Tensor> right, std::shared_ptr<Tensor> output) 
+
+    MatMulOp(std::shared_ptr<Tensor> left, std::shared_ptr<Tensor> right, std::shared_ptr<Tensor> output)
         : lhs(left), rhs(right), output(output) {};
 
     bool verify() override;
     std::string print() override;
-    void execute() override;
+    void forward() override;
+    void backward() override;
 };
 
-class ReluOp : public Op {
+class ReluOp : public Op
+{
 public:
     std::shared_ptr<Tensor> input;
     std::shared_ptr<Tensor> output;
-    ReluOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o) : input(i), output(o) {}
+
+    ReluOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o)
+        : input(i), output(o) {}
 
     bool verify() override;
     std::string print() override;
-    void execute() override;
+    void forward() override;
+    void backward() override;
 };
 
-class MatMulReluOp : public Op {
+class MatMulReluOp : public Op
+{
 public:
     std::shared_ptr<Tensor> lhs;
     std::shared_ptr<Tensor> rhs;
     std::shared_ptr<Tensor> output;
-    MatMulReluOp(std::shared_ptr<Tensor> lhs, std::shared_ptr<Tensor> rhs, std::shared_ptr<Tensor> output) 
-        : lhs(lhs), rhs(rhs), output(output) {}
+    std::shared_ptr<Tensor> matmul_output;
+
+    MatMulReluOp(std::shared_ptr<Tensor> lhs, std::shared_ptr<Tensor> rhs, std::shared_ptr<Tensor> output)
+        : lhs(lhs), rhs(rhs), output(output)
+    {
+        matmul_output = std::make_shared<Tensor>(output->dimension);
+    }
 
     bool verify() override;
     std::string print() override;
-    void execute() override;
+    void forward() override;
+    void backward() override;
 };
 
-class QuantizationOp : public Op {
+class QuantizationOp : public Op
+{
 public:
     std::shared_ptr<Tensor> input;
     std::shared_ptr<Tensor> output;
     Precision precision;
     float scale;
-    QuantizationOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o) : input(i), output(o), scale(1.0f) {}
+
+    QuantizationOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o)
+        : input(i), output(o), scale(1.0f) {}
 
     bool verify() override;
     std::string print() override;
-    void execute() override;
+    void forward() override;
+    void backward() override;
 };
 
-class DequantizationOp : public Op {
+class DequantizationOp : public Op
+{
 public:
     std::shared_ptr<Tensor> input;
     std::shared_ptr<Tensor> output;
-    QuantizationOp* quantOp;
-    DequantizationOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o, QuantizationOp* qOp = nullptr) : input(i), output(o), quantOp(qOp) {}
+    QuantizationOp *quantOp;
+
+    DequantizationOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o, QuantizationOp *qOp = nullptr)
+        : input(i), output(o), quantOp(qOp) {}
 
     bool verify() override;
     std::string print() override;
-    void execute() override;
+    void forward() override;
+    void backward() override;
 };
 
-
-class MSEOp : public Op {
+class MSEOp : public Op
+{
 public:
     std::shared_ptr<Tensor> input;
     std::shared_ptr<Tensor> output;
     std::shared_ptr<Tensor> ground_truth;
-    MSEOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o, std::shared_ptr<Tensor> g) : input(i), output(o), ground_truth(g) {}
+
+    MSEOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o, std::shared_ptr<Tensor> g)
+        : input(i), output(o), ground_truth(g) {}
 
     bool verify() override;
     std::string print() override;
-    void execute() override;
+    void forward() override;
+    void backward() override;
 };
 
 #endif

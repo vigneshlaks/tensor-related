@@ -13,6 +13,23 @@
 #include <stdexcept>
 #include <cmath>
 
+namespace {
+    std::shared_ptr<Tensor> matrixTranspose(std::shared_ptr<Tensor> input) {
+        int rows = input->dimension.at(input->dimension.size() - 1);
+        int cols = input->dimension.at(input->dimension.size() - 2);
+        
+        std::shared_ptr<Tensor> output = std::make_shared<Tensor>(std::vector<size_t>(rows, cols));
+        
+        for (size_t i = 0; i < rows; i++) {
+            for (size_t j = 0; j < cols; j++) {
+                output->setValue({j, i}, input->getValue({i, j}));
+            }
+        }
+        
+        return output;
+    }
+}
+
 int Op::setBackend(Backend b) {
     this->backend = b;
     return 0;
@@ -26,7 +43,11 @@ std::string ConstOp::print() {
     return "Const(output: " + output->print() + ")";
 };
 
-void ConstOp::execute() {
+void ConstOp::forward() {
+    return;
+};
+
+void ConstOp::backward() {
     return;
 };
 
@@ -50,7 +71,7 @@ std::string QuantizationOp::print() {
     return "QuantizationOp(input: " + input->print() + " → " + output->print() + ")";
 }
 
-void QuantizationOp::execute() {
+void QuantizationOp::forward() {
     if (backend == CPU) {
         // find max and min in tensor
         float x_max = -std::numeric_limits<float>::infinity();
@@ -108,6 +129,22 @@ void QuantizationOp::execute() {
     return;
 }
 
+void QuantizationOp::backward() {
+    if (backend == CPU) {
+        return;
+    } else {
+        #ifdef CUDA_FOUND
+            // Get the memory address for the first element
+            float* h_C = &(output->storage[0]);
+            float* h_A = &(lhs->storage[0]);
+            float* h_B = &(rhs->storage[0]);
+            quantization(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    }
+}
+
 bool DequantizationOp::verify() {
     // check if they are not the same size or equal to one
     if (input->dimension.size() != output->dimension.size() || input->dimension.size() == 1) {
@@ -128,7 +165,7 @@ std::string DequantizationOp::print() {
     return "QuantizationOp(input: " + input->print() + " → " + output->print() + ")";
 }
 
-void DequantizationOp::execute() {
+void DequantizationOp::forward() {
     if (backend == CPU) {
         float scale = (quantOp != nullptr) ? quantOp->scale : 1.0f;
         for (int i = 0; i < input->storage.size(); i++) {
@@ -139,19 +176,27 @@ void DequantizationOp::execute() {
     }
 }
 
+void DequantizationOp::backward() {
+    // TODO: Implement
+};
+
 bool MatMulOp::verify() {
     if (lhs->dimension.size() == 1 || rhs->dimension.size() == 1) {
         return false;
     }
 
-    return lhs->dimension[lhs->dimension.size() - 1] == rhs->dimension[rhs->dimension.size() - 2];
+    if (lhs->dimension[lhs->dimension.size() - 1] != rhs->dimension[rhs->dimension.size() - 2]) {
+        return false;
+    }
+
+    return true;
 };
 
 std::string MatMulOp::print() {
     return "MatMul(lhs: " + lhs->print() + ", rhs: " + rhs->print() + " → " + output->print() + ")";
 };
 
-void MatMulOp::execute() {
+void MatMulOp::forward() {
     if (backend == CPU) {
         // inline CPU for convenience
         // assume 2 dimensions for now
@@ -166,6 +211,41 @@ void MatMulOp::execute() {
 
                     output->setValue({i, j}, newValue);
                 }
+            }
+        }
+    } else {
+        #ifdef CUDA_FOUND
+            float* h_C = &(output->storage[0]);
+            float* h_A = &(lhs->storage[0]);
+            float* h_B = &(rhs->storage[0]);
+            matmul(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    }
+};
+
+void MatMulOp::backward() {
+    if (backend == CPU) {
+        // grad_lhs = output->grad @ rhs^T
+        for (size_t i = 0; i < lhs->dimension[0]; i++) {
+            for (size_t k = 0; k < lhs->dimension[1]; k++) {
+                float sum = 0.0f;
+                for (size_t j = 0; j < rhs->dimension[1]; j++) {
+                    sum += output->getGrad({i, j}) * rhs->getValue({k, j});
+                }
+                lhs->accumulateGrad({i, k}, sum);
+            }
+        }
+
+        // grad_rhs = lhs^T @ output->grad
+        for (size_t k = 0; k < rhs->dimension[0]; k++) {
+            for (size_t j = 0; j < rhs->dimension[1]; j++) {
+                float sum = 0.0f;
+                for (size_t i = 0; i < lhs->dimension[0]; i++) {
+                    sum += lhs->getValue({i, k}) * output->getGrad({i, j});
+                }
+                rhs->accumulateGrad({k, j}, sum);
             }
         }
     } else {
@@ -200,7 +280,7 @@ std::string ReluOp::print() {
     return "Relu(input: " + input->print() + " → " + output->print() + ")";
 };
 
-void ReluOp::execute() {
+void ReluOp::forward() {
     if (backend == CPU) {
         for (size_t i = 0; i < output->dimension.at(0); i++) {
             for (size_t j = 0; j < output->dimension.at(1); j++) {
@@ -225,6 +305,10 @@ void ReluOp::execute() {
     }
 };
 
+void ReluOp::backward() {
+    // TODO: Implement
+};
+
 bool MatMulReluOp::verify() {
     return lhs->dimension[lhs->dimension.size() - 1] == rhs->dimension[rhs->dimension.size() - 2];
 };
@@ -233,7 +317,7 @@ std::string MatMulReluOp::print() {
     return "MatMulRelu(lhs: " + lhs->print() + ", rhs: " + rhs->print() + " → " + output->print() + ")";
 };
 
-void MatMulReluOp::execute() {
+void MatMulReluOp::forward() {
     if (backend == CPU) {
         // inline CPU for convenience
         // assume 2 dimensions for now
@@ -263,6 +347,10 @@ void MatMulReluOp::execute() {
     }
 };
 
+void MatMulReluOp::backward() {
+    // TODO: Implement
+};
+
 bool MSEOp::verify() {
     if (input->dimension.size() != output->dimension.size() || input->dimension.size() != ground_truth->dimension.size()) {
         return false;
@@ -282,7 +370,7 @@ std::string MSEOp::print() {
     return "MSE(input: " + input->print() + " → " + output->print() + ")";
 };
 
-void MSEOp::execute() {
+void MSEOp::forward() {
     if (backend == CPU) {
         for (size_t i = 0; i < output->dimension.at(0); i++) {
             for (size_t j = 0; j < output->dimension.at(1); j++) {
@@ -302,4 +390,8 @@ void MSEOp::execute() {
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
     }
+};
+
+void MSEOp::backward() {
+    // TODO: Implement
 };

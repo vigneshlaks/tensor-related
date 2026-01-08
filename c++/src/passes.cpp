@@ -216,5 +216,29 @@ void PassManager::runGlobal() {
 };
 
 bool PassManager::verify() {
-    return false;
+    if (!linkedList || !linkedList->head) {
+        return false;
+    }
+
+    Node* current = linkedList->head;
+    Node* prev = nullptr;
+
+    while (current != nullptr && !current->id.empty()) {
+        // Check prev pointer consistency
+        if (current->prev != prev) {
+            return false;
+        }
+
+        // Verify operation if it exists
+        if (current->operation != nullptr) {
+            if (!current->operation->verify()) {
+                return false;
+            }
+        }
+
+        prev = current;
+        current = current->next;
+    }
+
+    return true;
 };

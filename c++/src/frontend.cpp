@@ -54,14 +54,13 @@ LinkedList parseJSON(json inputIR) {
     return parseInputs(inputIR);
 }
 
-LinkedList parseInputs(json instrs)
-{
+LinkedList parseInputs(json instrs) {
     Node* head = nullptr;
 
     // create start node
     Node* curr = new Node;
     curr->prev = head;
-
+ 
     // set to first node
     head = curr;
 
@@ -95,31 +94,37 @@ LinkedList parseInputs(json instrs)
             // get the input tensors
             std::shared_ptr<Tensor> lhs = nodeMap[instr["args"][0].get<std::string>()]->output;
             std::shared_ptr<Tensor> rhs = nodeMap[instr["args"][1].get<std::string>()]->output;
-            // assumes 2 dimensions
-            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(std::vector<size_t>{lhs->dimension[0], rhs->dimension[1]});
+            std::vector<size_t> output_dim;
+
+            // get batch dimension if it exists
+            for (size_t i = 0; i < lhs->dimension.size() - 2; i++) {
+                output_dim.push_back(lhs->dimension[i]);
+            }
+
+            output_dim.push_back(lhs->dimension[lhs->dimension.size() - 2]);
+            output_dim.push_back(rhs->dimension[rhs->dimension.size() - 1]);
+
+            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(output_dim);
+
             curr->output = output;
             curr->operation = std::make_unique<MatMulOp>(lhs, rhs, output);
         }
         else if (instr["op"] == "relu")
         {
-            // get the input tensors
             std::shared_ptr<Tensor> input = nodeMap[instr["args"][0].get<std::string>()]->output;
-            // assumes 2 dimensions
-            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(std::vector<size_t>{input->dimension[0], input->dimension[1]});
+            
+            // copy input dimension
+            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(input->dimension);
             curr->output = output;
             curr->operation = std::make_unique<ReluOp>(input, output);
         }
         else if (instr["op"] == "mse_loss")
         {
-            // get the input tensors
             std::shared_ptr<Tensor> input = nodeMap[instr["args"][0].get<std::string>()]->output;
-            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(std::vector<size_t>{input->dimension[0], input->dimension[1]});
-
-            // value and dim within the json for the loss represents the ground truth
+            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(input->dimension);
             std::vector<size_t> dim = instr["dim"].get<std::vector<size_t>>();
             std::vector<float> storage = instr["value"].get<std::vector<float>>();
             std::shared_ptr<Tensor> ground_truth = std::make_shared<Tensor>(dim, storage);
-
             curr->operation = std::make_unique<MSEOp>(input, output, ground_truth);
         }
 
@@ -141,8 +146,7 @@ LinkedList parseInputs(json instrs)
 }
 
 // TODO make a better version of this and add visualization
-void printLinkedList(LinkedList ll)
-{
+void printLinkedList(LinkedList ll) {
     std::map<OpType, std::string> opNames = {
         {OpType::Const, "Const"},
         {OpType::Matmul, "MatMul"},
