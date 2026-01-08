@@ -1,8 +1,6 @@
 import json
 import numpy as np
 
-GROUND_TRUTH = np.array([5, 2])
-
 class Executor:
     def __init__(self):
         # store the computations to perform
@@ -22,8 +20,8 @@ class Executor:
     def fused_matmul_relu_exec(self, a, b):
         return np.maximum(0, np.matmul(a, b))
 
-    def mse_loss_exec(self, input):
-        return (input - GROUND_TRUTH) ** 2
+    def mse_loss_exec(self, input, ground_truth):
+        return (input - ground_truth) ** 2
 
     def launch(self, op, args):
         # probably unideal wtv for now
@@ -38,6 +36,10 @@ def forward(instrs):
         if instr["op"] in exec.computations.keys():
             # get the computed result for our inputs
             inputs = [values[arg] for arg in instr["args"]]
+            # for mse_loss, add ground truth
+            if instr["op"] == "mse_loss":
+                inputs.append(np.array(instr["value"]))
+                instr["ground_truth"] = np.array(instr["value"])
             # execute the operation
             res = exec.launch(instr["op"], inputs)
             # save for rest of forward
@@ -50,38 +52,49 @@ def forward(instrs):
             raise ValueError(f"{instr['op']} is not a supported Operation")
     return instrs
 
-def iterative_backprop(instrs, ground_truth):
+def iterative_backprop(instrs):
+    # Initialize gradient accumulator for all tensors
+    tensor_grads = {}
+
     for i in range(len(instrs) - 1, -1, -1):
         if instrs[i]["op"] == "const":
             continue
         if instrs[i]["op"] == "mse_loss":
-            # pred - ground_truth for mse
-            instrs[i]["error"] = 2 * (instrs[i]["input_values"][0] - ground_truth)
+            # Initialize mse output gradient to 1 (like C++)
+            instrs[i]["grad"] = np.ones_like(instrs[i]["input_values"][0])
+            # pred - ground_truth for mse, multiplied by output gradient
+            instrs[i]["error"] = instrs[i]["grad"] * 2 * (instrs[i]["input_values"][0] - instrs[i]["ground_truth"])
         elif instrs[i]["op"] == "relu":
             # apply deriv to send back w mask
             input = instrs[i]["input_values"][0]
             instrs[i]["error"] = instrs[i+1]["error"] * (input > 0).astype(int)
         elif instrs[i]["op"] == "matmul":
             # input or prev nonlinearity
+            input_id = instrs[i]["args"][0]
+            weight_id = instrs[i]["args"][1]
             input = instrs[i]["input_values"][0]
             w = instrs[i]["input_values"][1]
             delta = instrs[i+1]["error"]
-            # grad acc
-            instrs[i]["grad"] = np.outer(input, delta)
-            # also send back error
+            # grad for weights (accumulate on weight tensor)
+            instrs[i]["weight_grad"] = np.outer(input, delta)
+            tensor_grads[weight_id] = np.outer(input, delta)
+            # error sent back to input (accumulate on input tensor)
             instrs[i]["error"] = delta @ w.T
+            tensor_grads[input_id] = delta @ w.T
         else:
             raise ValueError(f"{instrs[i]['op']} is not a supported Operation")
+
+    return tensor_grads
  
-def recursive_backprop(instrs, ground_truth):
+def recursive_backprop(instrs):
     def backprop(index, error):
         instr = instrs[index]
-        
+
         if instr["op"] == "const":
             return
         if instr["op"] == "mse_loss":
             # pred - ground_truth for mse
-            backprop(index - 1, 2 * (instr["input_values"][0] - ground_truth))
+            backprop(index - 1, 2 * (instr["input_values"][0] - instr["ground_truth"]))
         elif instr["op"] == "relu":
             # apply deriv to send back w mask
             input = instr["input_values"][0]
@@ -119,13 +132,35 @@ def descent_step(instrs, lr):
                 raise ValueError(f"{instr['op']} is not a supported Operation")
 
 def backward(instrs):
-    return iterative_backprop(instrs, GROUND_TRUTH)
+    return iterative_backprop(instrs)
 
 if __name__ == "__main__":
     with open("1-layer.json", "r") as f:
         data = json.load(f)
-    
+
     forward(data)
-    recursive_backprop(data, GROUND_TRUTH)
-    # iterative_backprop(data, GROUND_TRUTH)
-    print(data)
+    # recursive_backprop(data)
+    tensor_grads = iterative_backprop(data)
+
+    print("\nForward Pass Results:")
+    print("input:", data[0]["value"])
+    print("w1:", data[1]["value"])
+    print("pre_activated:", np.matmul(np.array(data[0]["value"]), np.array(data[1]["value"])))
+    print("y_hat:", np.maximum(0, np.matmul(np.array(data[0]["value"]), np.array(data[1]["value"]))))
+    y_hat = np.maximum(0, np.matmul(np.array(data[0]["value"]), np.array(data[1]["value"])))
+    print("mse:", (y_hat - np.array(data[4]["value"])) ** 2)
+
+    print("\nTensor Gradients:")
+    for instr in data:
+        if instr["op"] == "const":
+            if instr["id"] in tensor_grads:
+                print(f"{instr['id']} grad: {tensor_grads[instr['id']].flatten()}")
+            else:
+                print(f"{instr['id']} grad: (no gradient - leaf)")
+
+    for instr in data:
+        if instr["op"] != "const":
+            if "error" in instr:
+                print(f"{instr['id']} grad: {instr['error']}")
+            if "grad" in instr:
+                print(f"{instr['id']} output grad: {instr['grad']}")

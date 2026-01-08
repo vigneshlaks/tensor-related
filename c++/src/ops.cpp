@@ -65,11 +65,11 @@ bool QuantizationOp::verify() {
     }
 
     return true;
-}
+};
 
 std::string QuantizationOp::print() {
     return "QuantizationOp(input: " + input->print() + " → " + output->print() + ")";
-}
+};
 
 void QuantizationOp::forward() {
     if (backend == CPU) {
@@ -127,7 +127,7 @@ void QuantizationOp::forward() {
     }
 
     return;
-}
+};
 
 // straight through estimator
 void QuantizationOp::backward() {
@@ -144,7 +144,7 @@ void QuantizationOp::backward() {
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
     }
-}
+};
 
 bool DequantizationOp::verify() {
     // check if they are not the same size or equal to one
@@ -160,11 +160,11 @@ bool DequantizationOp::verify() {
     }
 
     return true;
-}
+};
 
 std::string DequantizationOp::print() {
     return "QuantizationOp(input: " + input->print() + " → " + output->print() + ")";
-}
+};
 
 void DequantizationOp::forward() {
     if (backend == CPU) {
@@ -175,7 +175,7 @@ void DequantizationOp::forward() {
     } else {
         throw std::runtime_error("GPU Implementation Not Supported");
     }
-}
+};
 
 void DequantizationOp::backward() {
     if (backend == CPU) {

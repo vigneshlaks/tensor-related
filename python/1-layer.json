@@ -22,6 +22,7 @@
   {
     "id": "mse",
     "op": "mse_loss",
-    "args": ["y_hat"]
+    "args": ["y_hat"],
+    "value": [5, 4]
   }
 ]
