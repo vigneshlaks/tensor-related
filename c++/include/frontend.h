@@ -28,8 +28,8 @@ struct Node {
 };
 
 struct LinkedList {
-    // just store the head for inference
     Node* head;
+    Node* tail;
     std::unordered_map<std::string, Node*> nodeMap;
 };
 

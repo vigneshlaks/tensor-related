@@ -18,12 +18,6 @@
         "config": {
           "precision": "fp32"
         }
-      },
-      {
-        "type": "quantization",
-        "config": {
-          "precision": "int8"
-        }
       }
     ]
   },

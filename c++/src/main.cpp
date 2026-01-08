@@ -50,5 +50,36 @@ int main() {
             current = current->next;
         }
 
+        std::cout << "\nTesting Backpropagation:" << std::endl;
+
+        if (list.tail->output != nullptr) {
+            std::cout << "Initializing output gradient to 1.0" << std::endl;
+            for (size_t i = 0; i < list.tail->output->grad.size(); i++) {
+                list.tail->output->grad[i] = 1.0f;
+            }
+        }
+
+        current = list.tail;
+        while (current != nullptr) {
+            std::cout << "Backward: " << current->id << std::endl;
+            if (current->operation != nullptr) {
+                current->operation->backward();
+            }
+            current = current->prev;
+        }
+
+        std::cout << "\nGradients:" << std::endl;
+        current = list.head;
+        while (current != nullptr) {
+            if (current->output != nullptr) {
+                std::cout << current->id << " grad: ";
+                for (float val : current->output->grad) {
+                    std::cout << val << " ";
+                }
+                std::cout << std::endl;
+            }
+            current = current->next;
+        }
+
         return 0;
 }

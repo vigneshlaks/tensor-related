@@ -28,12 +28,12 @@ namespace {
         
         return output;
     }
-}
+};
 
 int Op::setBackend(Backend b) {
     this->backend = b;
     return 0;
-}
+};
 
 bool ConstOp::verify() {
     return true;
@@ -129,16 +129,17 @@ void QuantizationOp::forward() {
     return;
 }
 
+// straight through estimator
 void QuantizationOp::backward() {
     if (backend == CPU) {
-        return;
+        // carry back the gradient from the following operation
+        for (int i = 0; i < output->grad.size(); i++) {
+            input->grad[i] = output->grad[i];
+        }
     } else {
         #ifdef CUDA_FOUND
             // Get the memory address for the first element
-            float* h_C = &(output->storage[0]);
-            float* h_A = &(lhs->storage[0]);
-            float* h_B = &(rhs->storage[0]);
-            quantization(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
+            throw std::runtime_error("GPU Implementation Not Supported");
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -177,7 +178,19 @@ void DequantizationOp::forward() {
 }
 
 void DequantizationOp::backward() {
-    // TODO: Implement
+    if (backend == CPU) {
+        // carry back the gradient from the following operation
+        for (int i = 0; i < output->grad.size(); i++) {
+            input->grad[i] = output->grad[i];
+        }
+    } else {
+        #ifdef CUDA_FOUND
+            // Get the memory address for the first element
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    }
 };
 
 bool MatMulOp::verify() {
@@ -250,10 +263,7 @@ void MatMulOp::backward() {
         }
     } else {
         #ifdef CUDA_FOUND
-            float* h_C = &(output->storage[0]);
-            float* h_A = &(lhs->storage[0]);
-            float* h_B = &(rhs->storage[0]);
-            matmul(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
+            throw std::runtime_error("GPU Implementation Not Supported");
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -306,7 +316,18 @@ void ReluOp::forward() {
 };
 
 void ReluOp::backward() {
-    // TODO: Implement
+    if (backend == CPU) {
+        for (int i = 0; i < output->grad.size(); i++) {
+            float mask = (output->storage[i] > 0) ? 1.0f : 0.0f;
+            input->grad[i] += output->grad[i] * mask;
+        }
+    } else {
+        #ifdef CUDA_FOUND
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    }
 };
 
 bool MatMulReluOp::verify() {
@@ -348,7 +369,37 @@ void MatMulReluOp::forward() {
 };
 
 void MatMulReluOp::backward() {
-    // TODO: Implement
+    if (backend == CPU) {
+        // grad_lhs = (output->grad * relu_mask) @ rhs^T
+        for (size_t i = 0; i < lhs->dimension[0]; i++) {
+            for (size_t k = 0; k < lhs->dimension[1]; k++) {
+                float sum = 0.0f;
+                for (size_t j = 0; j < rhs->dimension[1]; j++) {
+                    float reluGrad = (output->getValue({i, j}) > 0) ? 1.0f : 0.0f;
+                    sum += output->getGrad({i, j}) * reluGrad * rhs->getValue({k, j});
+                }
+                lhs->accumulateGrad({i, k}, sum);
+            }
+        }
+
+        // grad_rhs = lhs^T @ (output->grad * relu_mask)
+        for (size_t k = 0; k < rhs->dimension[0]; k++) {
+            for (size_t j = 0; j < rhs->dimension[1]; j++) {
+                float sum = 0.0f;
+                for (size_t i = 0; i < lhs->dimension[0]; i++) {
+                    float reluGrad = (output->getValue({i, j}) > 0) ? 1.0f : 0.0f;
+                    sum += lhs->getValue({i, k}) * output->getGrad({i, j}) * reluGrad;
+                }
+                rhs->accumulateGrad({k, j}, sum);
+            }
+        }
+    } else {
+        #ifdef CUDA_FOUND
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    }
 };
 
 bool MSEOp::verify() {
@@ -393,5 +444,18 @@ void MSEOp::forward() {
 };
 
 void MSEOp::backward() {
-    // TODO: Implement
+    if (backend == CPU) {
+        for (size_t i = 0; i < input->dimension[0]; i++) {
+            for (size_t j = 0; j < input->dimension[1]; j++) {
+                float grad = 2.0f * (input->getValue({i, j}) - ground_truth->getValue({i, j}));
+                input->accumulateGrad({i, j}, grad * output->getGrad({i, j}));
+            }
+        }
+    } else {
+        #ifdef CUDA_FOUND
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    }
 };

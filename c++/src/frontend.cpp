@@ -125,6 +125,7 @@ LinkedList parseInputs(json instrs) {
             std::vector<size_t> dim = instr["dim"].get<std::vector<size_t>>();
             std::vector<float> storage = instr["value"].get<std::vector<float>>();
             std::shared_ptr<Tensor> ground_truth = std::make_shared<Tensor>(dim, storage);
+            curr->output = output;
             curr->operation = std::make_unique<MSEOp>(input, output, ground_truth);
         }
 
@@ -140,8 +141,11 @@ LinkedList parseInputs(json instrs) {
         curr = next;
     }
 
+    Node* tail = curr->prev;
+
     return {
         head,
+        tail,
         nodeMap};
 }
 
