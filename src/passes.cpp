@@ -1,6 +1,34 @@
 #include "../include/passes.h"
 #include <iostream>
-#include <algorithm> 
+#include <algorithm>
+
+namespace {
+    void insertNodeAndUpdatePointers(LinkedList* list, Node* newNode, Node* prevNode, Node* nextNode,
+                             std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
+        // Insert node into linked list
+        if (prevNode) {
+            prevNode->next = newNode;
+        } else {
+            list->head = newNode;
+        }
+
+        newNode->prev = prevNode;
+        newNode->next = nextNode;
+
+        if (nextNode) {
+            nextNode->prev = newNode;
+        } else {
+            list->tail = newNode;
+        }
+
+        // Add to node map
+        list->nodeMap[newNode->id] = newNode;
+
+        if (nextNode && nextNode->operation) {
+            nextNode->operation->updateTensorRefs(oldTensor, newTensor);
+        }
+    }
+} 
 
 int FusionPass::globalApply(LinkedList* list) {
     int fusionCount = 0;
@@ -118,14 +146,17 @@ int QuantizationPass::globalApply(LinkedList* list) {
         return 0;
     }
 
+    // Create quantization node
     Node* quantNode = new Node();
     quantNode->id = firstNode->id + "_quantized";
     quantNode->opType = Const;
 
     std::shared_ptr<Tensor> input = firstNode->output;
 
-    quantNode->output = input;
-    quantNode->operation = std::make_unique<QuantizationOp>(input, input);
+    std::shared_ptr<Tensor> quantized_output = std::make_shared<Tensor>(input->dimension);
+
+    quantNode->output = quantized_output;
+    quantNode->operation = std::make_unique<QuantizationOp>(input, quantized_output);
     QuantizationOp* quantOp = dynamic_cast<QuantizationOp*>(quantNode->operation.get());
     quantOp->precision = precision;
 
@@ -134,17 +165,8 @@ int QuantizationPass::globalApply(LinkedList* list) {
         quantOp->backend = firstNode->next->operation->backend;
     }
 
-    // Place in node between first and next
-    Node* nextNode = firstNode->next;
-    firstNode->next = quantNode;
-    quantNode->prev = firstNode;
-    quantNode->next = nextNode;
-    if (nextNode) {
-        nextNode->prev = quantNode;
-    }
-
-    // Add to nodemap
-    list->nodeMap[quantNode->id] = quantNode;
+    // Insert node and rewire tensor references
+    insertNodeAndUpdatePointers(list, quantNode, firstNode, firstNode->next, input, quantized_output);
 
     // We need to dequantize before computing the loss
     Node* lastComputeNode = list->head;
@@ -159,14 +181,14 @@ int QuantizationPass::globalApply(LinkedList* list) {
     if (lastComputeNode && lastComputeNode->next && lastComputeNode->next->opType == MSE) {
         Node* dequantNode = new Node();
         dequantNode->id = lastComputeNode->id + "_dequantized";
-        dequantNode->opType = OpType::Const;
+        dequantNode->opType = Const;
 
-        // Dequantization is done in-place (same as quantization for consistency)
-        std::shared_ptr<Tensor> output = lastComputeNode->output;
+        std::shared_ptr<Tensor> quantized_input = lastComputeNode->output;
+        std::shared_ptr<Tensor> dequantized_output = std::make_shared<Tensor>(quantized_input->dimension);
 
         // Pass quantOp pointer so dequantization can access the scale factor
-        dequantNode->output = output;
-        dequantNode->operation = std::make_unique<DequantizationOp>(output, output, quantOp);
+        dequantNode->output = dequantized_output;
+        dequantNode->operation = std::make_unique<DequantizationOp>(quantized_input, dequantized_output, quantOp);
         DequantizationOp* dequantOp = dynamic_cast<DequantizationOp*>(dequantNode->operation.get());
 
         // Use same backend as previous node
@@ -174,15 +196,9 @@ int QuantizationPass::globalApply(LinkedList* list) {
             dequantOp->backend = lastComputeNode->operation->backend;
         }
 
-        // Place in node
-        Node* mseNode = lastComputeNode->next;
-        lastComputeNode->next = dequantNode;
-        dequantNode->prev = lastComputeNode;
-        dequantNode->next = mseNode;
-        mseNode->prev = dequantNode;
-        
-        // Register the dequantization node in the map
-        list->nodeMap[dequantNode->id] = dequantNode;
+        // Insert node and rewire tensor references
+        insertNodeAndUpdatePointers(list, dequantNode, lastComputeNode, lastComputeNode->next,
+                           quantized_input, dequantized_output);
     }
 
     return 1;

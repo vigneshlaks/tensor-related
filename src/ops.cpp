@@ -51,6 +51,10 @@ void ConstOp::backward() {
     return;
 };
 
+void ConstOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
+    return;
+};
+
 bool QuantizationOp::verify() {
     // check if they are not the same size or equal to one
     if (input->dimension.size() != output->dimension.size() || input->dimension.size() == 1) {
@@ -129,16 +133,14 @@ void QuantizationOp::forward() {
     return;
 };
 
-// straight through estimator
 void QuantizationOp::backward() {
     if (backend == CPU) {
-        // carry back the gradient from the following operation
+        // Copy gradients through unchanged
         for (int i = 0; i < output->grad.size(); i++) {
             input->grad[i] = output->grad[i];
         }
     } else {
         #ifdef CUDA_FOUND
-            // Get the memory address for the first element
             throw std::runtime_error("GPU Implementation Not Supported");
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
@@ -179,17 +181,28 @@ void DequantizationOp::forward() {
 
 void DequantizationOp::backward() {
     if (backend == CPU) {
-        // carry back the gradient from the following operation
+        // Straight-through: pass gradients through unchanged
         for (int i = 0; i < output->grad.size(); i++) {
             input->grad[i] = output->grad[i];
         }
     } else {
         #ifdef CUDA_FOUND
-            // Get the memory address for the first element
             throw std::runtime_error("GPU Implementation Not Supported");
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
+    }
+};
+
+void QuantizationOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
+    if (input == oldTensor) {
+        input = newTensor;
+    }
+};
+
+void DequantizationOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
+    if (input == oldTensor) {
+        input = newTensor;
     }
 };
 
@@ -270,6 +283,15 @@ void MatMulOp::backward() {
     }
 };
 
+void MatMulOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
+    if (lhs == oldTensor) {
+        lhs = newTensor;
+    }
+    if (rhs == oldTensor) {
+        rhs = newTensor;
+    }
+};
+
 bool ReluOp::verify() {
     // check if they are not the same size or equal to one
     if (input->dimension.size() != output->dimension.size() || input->dimension.size() == 1) {
@@ -327,6 +349,12 @@ void ReluOp::backward() {
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
+    }
+};
+
+void ReluOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
+    if (input == oldTensor) {
+        input = newTensor;
     }
 };
 
@@ -402,6 +430,15 @@ void MatMulReluOp::backward() {
     }
 };
 
+void MatMulReluOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
+    if (lhs == oldTensor) {
+        lhs = newTensor;
+    }
+    if (rhs == oldTensor) {
+        rhs = newTensor;
+    }
+};
+
 bool MSEOp::verify() {
     if (input->dimension.size() != output->dimension.size() || input->dimension.size() != ground_truth->dimension.size()) {
         return false;
@@ -457,5 +494,11 @@ void MSEOp::backward() {
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
+    }
+};
+
+void MSEOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
+    if (input == oldTensor) {
+        input = newTensor;
     }
 };

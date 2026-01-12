@@ -25,6 +25,9 @@ public:
     virtual std::string print() = 0;
     virtual void forward() = 0;
     virtual void backward() = 0;
+
+    // Helper for passes: replace tensor references during graph transformations
+    virtual void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) = 0;
 };
 
 class ConstOp : public Op
@@ -38,6 +41,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
 class MatMulOp : public Op
@@ -54,6 +58,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
 class ReluOp : public Op
@@ -69,6 +74,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
 class MatMulReluOp : public Op
@@ -89,6 +95,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
 class QuantizationOp : public Op
@@ -106,6 +113,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
 class DequantizationOp : public Op
@@ -122,6 +130,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
 class MSEOp : public Op
@@ -138,6 +147,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
 #endif
