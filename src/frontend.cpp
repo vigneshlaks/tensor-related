@@ -37,8 +37,6 @@ Metadata parseMetaData(json inputIR) {
             meta.passes.push_back(new BackendPass(backendMap[config["backend"]]));
         } else if (type == "fusion") {
             meta.passes.push_back(new FusionPass());
-        } else if (type == "precision") {
-            meta.passes.push_back(new PrecisionPass(precisionMap[config["precision"]]));
         } else if (type == "quantization") {
             meta.passes.push_back(new QuantizationPass(precisionMap[config["precision"]]));
         }

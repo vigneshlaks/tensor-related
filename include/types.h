@@ -15,9 +15,6 @@ private:
     void fillStride();
 
 public:
-    // for now just store precision for kernel launches
-    Precision precision = Float32;
-    
     std::vector<float> storage = {};
     std::vector<size_t> dimension = {};
     std::vector<float> grad = {};
@@ -32,7 +29,6 @@ public:
     float getGrad(std::vector<size_t> index);
     void setGrad(std::vector<size_t> index, float value);
     void accumulateGrad(std::vector<size_t> index, float value);
-    void changePrecision(Precision p);
     std::string print();
     std::string printVerbose();
 };

@@ -120,26 +120,6 @@ void FusionPass::fuseNodes(LinkedList* list, Node* first, Node* second) {
     }
 };
 
-int PrecisionPass::globalApply(LinkedList* list) {
-    Node* current = list->head;
-
-    while (current != nullptr) {
-        if (current->opType == Matmul) {
-            MatMulOp* matmul = dynamic_cast<MatMulOp*>(current->operation.get());
-            matmul->lhs->changePrecision(precision);
-            matmul->rhs->changePrecision(precision);
-            matmul->output->changePrecision(precision);
-        } else if (current->opType == MatmulRelu) {
-            MatMulReluOp* matmulRelu = dynamic_cast<MatMulReluOp*>(current->operation.get());
-            matmulRelu->lhs->changePrecision(precision);
-            matmulRelu->rhs->changePrecision(precision);
-            matmulRelu->output->changePrecision(precision);
-        }
-        current = current->next;
-    }
-    return 0;
-};
-
 int QuantizationPass::globalApply(LinkedList* list) {
     Node* firstNode = list->head;
     if (firstNode->opType != Const) {

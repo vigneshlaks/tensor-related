@@ -22,15 +22,6 @@ public:
     int globalApply(LinkedList* list) override;
 };
 
-// change precision
-class PrecisionPass : public Pass {
-private:
-    Precision precision;
-public:
-    PrecisionPass(Precision p) : precision(p) {};
-    int globalApply(LinkedList* list) override;
-};
-
 // add in quantization operation(s)
 class QuantizationPass : public Pass {
 private:
