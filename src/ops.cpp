@@ -502,3 +502,75 @@ void MSEOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<
         input = newTensor;
     }
 };
+
+std::vector<size_t> ConstOp::inferOutputShape() {
+    return output->dimension;
+}
+
+std::vector<size_t> MatMulOp::inferOutputShape() {
+    if (!lhs || !rhs || lhs->dimension.size() < 2 || rhs->dimension.size() < 2) {
+        return {};  // Invalid
+    }
+
+    std::vector<size_t> result_shape;
+
+    // batching
+    for (size_t i = 0; i < lhs->dimension.size() - 2; i++) {
+        result_shape.push_back(lhs->dimension[i]);
+    }
+
+    size_t M = lhs->dimension[lhs->dimension.size() - 2];
+    size_t N = rhs->dimension[rhs->dimension.size() - 1];
+    result_shape.push_back(M);
+    result_shape.push_back(N);
+
+    return result_shape;
+}
+
+std::vector<size_t> ReluOp::inferOutputShape() {
+    if (!input) {
+        return {};
+    }
+    return input->dimension;
+}
+
+std::vector<size_t> MatMulReluOp::inferOutputShape() {
+    if (!lhs || !rhs || lhs->dimension.size() < 2 || rhs->dimension.size() < 2) {
+        return {};
+    }
+
+    std::vector<size_t> result_shape;
+
+    // batching
+    for (size_t i = 0; i < lhs->dimension.size() - 2; i++) {
+        result_shape.push_back(lhs->dimension[i]);
+    }
+
+    size_t M = lhs->dimension[lhs->dimension.size() - 2];
+    size_t N = rhs->dimension[rhs->dimension.size() - 1];
+    result_shape.push_back(M);
+    result_shape.push_back(N);
+
+    return result_shape;
+}
+
+std::vector<size_t> QuantizationOp::inferOutputShape() {
+    if (!input) {
+        return {};
+    }
+    return input->dimension;
+}
+
+std::vector<size_t> DequantizationOp::inferOutputShape() {
+    if (!input) {
+        return {};
+    }
+    return input->dimension;
+}
+
+std::vector<size_t> MSEOp::inferOutputShape() {
+    if (!input) {
+        return {};
+    }
+    return input->dimension;
+};

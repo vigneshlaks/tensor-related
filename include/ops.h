@@ -26,6 +26,9 @@ public:
     virtual void forward() = 0;
     virtual void backward() = 0;
 
+    // Shape inference: compute output shape from input shapes (supports batching)
+    virtual std::vector<size_t> inferOutputShape() = 0;
+
     // Helper for passes: replace tensor references during graph transformations
     virtual void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) = 0;
 };
@@ -41,6 +44,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    std::vector<size_t> inferOutputShape() override;
     void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
@@ -58,6 +62,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    std::vector<size_t> inferOutputShape() override;
     void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
@@ -74,6 +79,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    std::vector<size_t> inferOutputShape() override;
     void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
@@ -95,6 +101,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    std::vector<size_t> inferOutputShape() override;
     void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
@@ -113,6 +120,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    std::vector<size_t> inferOutputShape() override;
     void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
@@ -130,6 +138,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    std::vector<size_t> inferOutputShape() override;
     void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
@@ -147,6 +156,7 @@ public:
     std::string print() override;
     void forward() override;
     void backward() override;
+    std::vector<size_t> inferOutputShape() override;
     void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 

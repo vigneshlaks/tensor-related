@@ -49,6 +49,14 @@ public:
     int globalApply(LinkedList* list) override;
 };
 
+// infer output shapes from input shapes
+class ShapeInferencePass : public Pass {
+private:
+    int inferShape(Node* node);
+public:
+    int globalApply(LinkedList* list) override;
+};
+
 class PassManager
 {
 private:

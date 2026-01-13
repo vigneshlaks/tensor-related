@@ -210,7 +210,7 @@ int BackendPass::globalApply(LinkedList* list) {
     while (current != nullptr) {
         // const has null operation
         if (current->operation != nullptr) {
-            
+
             // set the backend associated with this pass to the operation
             current->operation->setBackend(this->backend);
         }
@@ -219,6 +219,47 @@ int BackendPass::globalApply(LinkedList* list) {
 
     return 0;
 }
+
+int ShapeInferencePass::inferShape(Node* node) {
+    if (!node || !node->operation || !node->output) {
+        return 0;
+    }
+
+    std::vector<size_t> inferred_shape = node->operation->inferOutputShape();
+    bool success = false;
+
+    if (!inferred_shape.empty() && node->output->dimension.empty()) {
+        node->output->dimension = inferred_shape;
+
+        size_t totalSize = 1;
+        for (size_t dim : inferred_shape) {
+            totalSize *= dim;
+        }
+        node->output->storage.resize(totalSize, 0.0f);
+        node->output->grad.resize(totalSize, 0.0f);
+        
+        success = true;
+    }
+
+    return success ? 1 : 0;
+}
+
+int ShapeInferencePass::globalApply(LinkedList* list) {
+    if (!list || !list->head) {
+        return 0;
+    }
+
+    Node* current = list->head;
+    int inferredCount = 0;
+
+    while (current != nullptr) {
+        inferredCount += inferShape(current);
+        current = current->next;
+    }
+
+    return inferredCount;
+}
+
 
 void PassManager::registerPass(Pass* pass) {
     passes.push_back(pass);
