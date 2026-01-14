@@ -240,7 +240,6 @@ int ShapeInferencePass::globalApply(LinkedList* list) {
     return inferredCount;
 }
 
-
 void PassManager::registerPass(Pass* pass) {
     passes.push_back(pass);
 };
