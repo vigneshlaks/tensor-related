@@ -20,6 +20,7 @@ enum OpType {
 struct Node {
     std::string id;
     OpType opType;
+    bool trainable = false;
     std::shared_ptr<Tensor> output;
     std::unique_ptr<Op> operation;
 

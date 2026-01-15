@@ -86,6 +86,10 @@ LinkedList parseInputs(json instrs) {
 
             curr->output = output;
             curr->operation = std::make_unique<ConstOp>(output);
+
+            if (instr.contains("trainable")) {
+                curr->trainable = instr["trainable"].get<bool>();
+            }
         }
         else if (instr["op"] == "matmul")
         {

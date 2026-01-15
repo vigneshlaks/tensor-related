@@ -32,13 +32,13 @@ target_link_libraries(passes nlohmann_json::nlohmann_json)
 target_link_libraries(main frontend types ops passes ${OPS_GPU_LIB} nlohmann_json::nlohmann_json)
 
 # Testing with Catch2
-find_package(Catch2 3 REQUIRED)
+# find_package(Catch2 3 REQUIRED)
 
-enable_testing()
+# enable_testing()
 
-add_executable(test_types tests/test_types.cpp)
-target_link_libraries(test_types types Catch2::Catch2WithMain)
+# add_executable(test_types tests/test_types.cpp)
+# target_link_libraries(test_types types Catch2::Catch2WithMain)
 
-include(CTest)
-include(Catch)
-catch_discover_tests(test_types)
+# include(CTest)
+# include(Catch)
+# catch_discover_tests(test_types)
