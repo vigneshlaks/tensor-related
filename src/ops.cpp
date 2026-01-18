@@ -574,3 +574,95 @@ std::vector<size_t> MSEOp::inferOutputShape() {
     }
     return input->dimension;
 };
+
+std::vector<size_t> SoftmaxOp::inferOutputShape() {
+    if (!input) {
+        return {};
+    }
+    return input->dimension;
+};
+
+std::vector<size_t> CrossEntropyOp::inferOutputShape() {
+    if (!input) {
+        return {};
+    }
+    return input->dimension;
+};
+
+bool SoftmaxOp::verify() {
+    if (input->dimension.size() != output->dimension.size() || input->dimension.size() == 1) {
+        return false;
+    }
+
+    // check dimensions are the same
+    for (int i = 0; i < input->dimension.size(); i++) {
+        if (input->dimension[i] != output->dimension[i]) {
+            return false;
+        }
+    }
+
+    return true;
+};
+
+std::string SoftmaxOp::print() {
+    return "Softmax(input: " + input->print() + " → " + output->print() + ")";
+};
+
+void SoftmaxOp::forward() {
+    if (backend == CPU) {
+        // denominator
+        float max = -std::numeric_limits<float>::infinity();
+
+        // get max
+        for (int i = 0; i < input->storage.size(); i++) {
+            max = std::max(max, input->storage[i]);
+        };
+
+        // compute denominator
+        float denominator = 0.0f;
+        for (int i = 0; i < input->storage.size(); i++) {
+            denominator += std::exp(input->storage[i] - max);
+        };
+
+        // compute softmax
+        for (int i = 0; i < input->storage.size(); i++) {
+            output->storage[i] = std::exp(input->storage[i] - max) / denominator;
+        };
+    } else {
+        #ifdef CUDA_FOUND
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    }
+};
+
+void SoftmaxOp::backward() {
+    throw std::runtime_error("Softmax is an inference only operator");
+};
+
+void SoftmaxOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
+    if (input == oldTensor) {
+        input = newTensor;
+    }
+};
+
+bool CrossEntropyOp::verify() {
+    return;
+};
+
+std::string CrossEntropyOp::print() {
+    return;
+};
+
+void CrossEntropyOp::forward() {
+    return;
+};
+
+void CrossEntropyOp::backward() {
+    return;
+};
+
+void CrossEntropyOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
+    return;
+};
