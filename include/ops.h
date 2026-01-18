@@ -26,10 +26,8 @@ public:
     virtual void forward() = 0;
     virtual void backward() = 0;
 
-    // Shape inference: compute output shape from input shapes (supports batching)
     virtual std::vector<size_t> inferOutputShape() = 0;
 
-    // Helper for passes: replace tensor references during graph transformations
     virtual void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) = 0;
 };
 
@@ -150,7 +148,7 @@ public:
     std::shared_ptr<Tensor> ground_truth;
 
     MSEOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o, std::shared_ptr<Tensor> g)
-        : input(i), output(o), ground_truth(g) {}
+        : input(i), output(o), ground_truth(g) {};
 
     bool verify() override;
     std::string print() override;
@@ -160,4 +158,38 @@ public:
     void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
+class SoftmaxOp : public Op 
+{
+public:
+    std::shared_ptr<Tensor> input;
+    std::shared_ptr<Tensor> output;
+
+    SoftmaxOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o) :
+        input(i), output(o) {};
+
+    bool verify() override;
+    std::string print() override;
+    void forward() override;
+    void backward() override;
+    std::vector<size_t> inferOutputShape() override;
+    void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
+};
+
+class CrossEntropyOp : public Op 
+{
+public:
+    std::shared_ptr<Tensor> input;
+    std::shared_ptr<Tensor> output;
+    std::shared_ptr<Tensor> groundTruth;
+
+    CrossEntropyOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o, std::shared_ptr<Tensor> g) :
+        input(i), output(o), groundTruth(g) {};
+
+    bool verify() override;
+    std::string print() override;
+    void forward() override;
+    void backward() override;
+    std::vector<size_t> inferOutputShape() override;
+    void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
+};
 #endif

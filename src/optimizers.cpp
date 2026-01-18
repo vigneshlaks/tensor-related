@@ -1,9 +1,5 @@
 #include "../include/optimizers.h"
 
-
-//TODO Add helper for ll traversals
-
-
 void Optimizers::forward() {
     Node* current = list->head;
 
@@ -13,7 +9,7 @@ void Optimizers::forward() {
         }
         current = current->next;
     }
-}
+};
 
 void Optimizers::backward() {
     Node* current = list->tail;
@@ -24,7 +20,7 @@ void Optimizers::backward() {
         }
         current = current->prev;
     }
-}
+};
 
 void Optimizers::zeroGrad() {
     Node* current = list->head;
@@ -37,7 +33,7 @@ void Optimizers::zeroGrad() {
         }
         current = current->next;
     }
-}
+};
 
 void SGD::descentStep() {
     Node* current = list->head;
@@ -50,7 +46,7 @@ void SGD::descentStep() {
         }
         current = current->next;
     }
-}
+};
 
 Adam::Adam(float lr, LinkedList* l, float b1, float b2, float e) : Optimizers(lr, l) {
     beta1 = b1;
@@ -77,7 +73,6 @@ void Adam::descentStep() {
         if (current->trainable && current->output != nullptr) {
             for (size_t i = 0; i < current->output->storage.size(); i++) {
                 // Adam update formula
-                
                 float g = current->output->grad[i];
 
                 m[current->id][i] = beta1 * m[current->id][i] + (1.0f - beta1) * g;

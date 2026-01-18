@@ -1,7 +1,7 @@
 #include <iostream>
 #include "../include/types.h"
 #include "../include/ops.h"
-#include "../include/frontend.h"
+#include "../include/hlo.h"
 #include "../include/passes.h"
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -37,8 +37,6 @@ void test_ir(const std::string& filename) {
             }
             current = current->next;
         }
-
-        
 
         std::cout << "\nExecution complete!" << std::endl;
 }

@@ -1,5 +1,5 @@
 
-#include "../include/frontend.h"
+#include "../include/hlo.h"
 #include "../include/passes.h"
 #include <map>
 #include <iostream>
@@ -16,7 +16,7 @@ Metadata parseMetaData(json inputIR) {
 
     if (!inputIR.contains("metadata") || !inputIR["metadata"].contains("passes")) {
         return meta;
-    }
+    };
 
     std::map<std::string, Backend> backendMap = {
         {"cpu", Backend::CPU},

@@ -1,6 +1,5 @@
-// go from json to ir for now
-#ifndef FRONTEND_H
-#define FRONTEND_H
+#ifndef HLO_H
+#define HLO_H
 
 #include "ops.h"
 #include "types.h"
