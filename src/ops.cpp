@@ -129,8 +129,6 @@ void QuantizationOp::forward() {
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
     }
-
-    return;
 };
 
 void QuantizationOp::backward() {
@@ -195,15 +193,13 @@ void DequantizationOp::backward() {
 };
 
 void QuantizationOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
-    if (input == oldTensor) {
-        input = newTensor;
-    }
+    if (input == oldTensor) input = newTensor;                                                                           
+    if (output == oldTensor) output = newTensor;
 };
 
 void DequantizationOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
-    if (input == oldTensor) {
-        input = newTensor;
-    }
+    if (input == oldTensor) input = newTensor;                                                                           
+    if (output == oldTensor) output = newTensor;
 };
 
 bool MatMulOp::verify() {
@@ -226,6 +222,7 @@ void MatMulOp::forward() {
     if (backend == CPU) {
         // inline CPU for convenience
         // assume 2 dimensions for now
+        // first dimension is batch for lhs 
         for (size_t i = 0; i < output->dimension.at(0); i++) {
             for (size_t j = 0; j < output->dimension.at(1); j++) {
                 // rhs->dimension.at(0) refers to the intermediate column
@@ -244,7 +241,7 @@ void MatMulOp::forward() {
             float* h_C = &(output->storage[0]);
             float* h_A = &(lhs->storage[0]);
             float* h_B = &(rhs->storage[0]);
-            matmul(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
+            matmul(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[0]);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -284,12 +281,9 @@ void MatMulOp::backward() {
 };
 
 void MatMulOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
-    if (lhs == oldTensor) {
-        lhs = newTensor;
-    }
-    if (rhs == oldTensor) {
-        rhs = newTensor;
-    }
+    if (lhs == oldTensor) lhs = newTensor;                                                                           
+    if (rhs == oldTensor) rhs = newTensor;
+    if (output == oldTensor) output = newTensor;
 };
 
 bool ReluOp::verify() {
@@ -440,17 +434,23 @@ void MatMulReluOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shar
 };
 
 bool MSEOp::verify() {
-    if (input->dimension.size() != output->dimension.size() || input->dimension.size() != ground_truth->dimension.size()) {
+    // input and ground truth should be the same dimension
+    if (input->dimension.size() != ground_truth->dimension.size()) {
         return false;
     }
 
     // check same shape
     for (int i = 0; i < input->dimension.size(); i++) {
-        if (input->dimension[i] != output->dimension[i] || input->dimension[i] != ground_truth->dimension[i]) {
+        if (input->dimension[i] != ground_truth->dimension[i]) {
             return false;
         }
     }
 
+    // output should be a scalar
+    if (output->dimension.size() != 1) {
+        return false;
+    }
+    
     return true;
 };
 
@@ -460,12 +460,21 @@ std::string MSEOp::print() {
 
 void MSEOp::forward() {
     if (backend == CPU) {
-        for (size_t i = 0; i < output->dimension.at(0); i++) {
-            for (size_t j = 0; j < output->dimension.at(1); j++) {
-                float diff = input->getValue({i, j}) - ground_truth->getValue({i, j});
-                output->setValue({i, j}, diff * diff);
+        // dim[0] = batch, dim[1] = features
+        // MSE averaged over all elements
+        size_t batch = input->dimension[0];
+        size_t features = input->dimension[1];
+
+        float sum = 0.0f;
+        for (size_t b = 0; b < batch; b++) {
+            for (size_t f = 0; f < features; f++) {
+                float diff = input->getValue({b, f}) - ground_truth->getValue({b, f});
+                sum += diff * diff;
             }
         }
+
+        float mse = sum / (batch * features);
+        output->setValue({0}, mse);
     } else {
         #ifdef CUDA_FOUND
             float* h_output = &(output->storage[0]);
@@ -482,10 +491,15 @@ void MSEOp::forward() {
 
 void MSEOp::backward() {
     if (backend == CPU) {
-        for (size_t i = 0; i < input->dimension[0]; i++) {
-            for (size_t j = 0; j < input->dimension[1]; j++) {
-                float grad = 2.0f * (input->getValue({i, j}) - ground_truth->getValue({i, j}));
-                input->accumulateGrad({i, j}, grad * output->getGrad({i, j}));
+        size_t batch = input->dimension[0];
+        size_t features = input->dimension[1];
+        float incomingGradient = output->getGrad({0});
+        float scale = 2.0f / (batch * features);
+
+        for (size_t b = 0; b < batch; b++) {
+            for (size_t f = 0; f < features; f++) {
+                float diff = input->getValue({b, f}) - ground_truth->getValue({b, f});
+                input->accumulateGrad({b, f}, scale * diff * incomingGradient);
             }
         }
     } else {
@@ -610,24 +624,28 @@ std::string SoftmaxOp::print() {
 
 void SoftmaxOp::forward() {
     if (backend == CPU) {
-        // denominator
-        float max = -std::numeric_limits<float>::infinity();
+        // dim[0] = batch, dim[1] = classes
+        size_t batch = input->dimension[0];
+        size_t classes = input->dimension[1];
 
-        // get max
-        for (int i = 0; i < input->storage.size(); i++) {
-            max = std::max(max, input->storage[i]);
-        };
+        for (size_t b = 0; b < batch; b++) {
+            float max_val = -std::numeric_limits<float>::infinity();
+            for (size_t c = 0; c < classes; c++) {
+                max_val = std::max(max_val, input->getValue({b, c}));
+            }
 
-        // compute denominator
-        float denominator = 0.0f;
-        for (int i = 0; i < input->storage.size(); i++) {
-            denominator += std::exp(input->storage[i] - max);
-        };
+            // compute denominator for this row
+            float denom = 0.0f;
+            for (size_t c = 0; c < classes; c++) {
+                denom += std::exp(input->getValue({b, c}) - max_val);
+            }
 
-        // compute softmax
-        for (int i = 0; i < input->storage.size(); i++) {
-            output->storage[i] = std::exp(input->storage[i] - max) / denominator;
-        };
+            // compute softmax for this row
+            for (size_t c = 0; c < classes; c++) {
+                float val = std::exp(input->getValue({b, c}) - max_val) / denom;
+                output->setValue({b, c}, val);
+            }
+        }
     } else {
         #ifdef CUDA_FOUND
             throw std::runtime_error("GPU Implementation Not Supported");
@@ -648,21 +666,64 @@ void SoftmaxOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_
 };
 
 bool CrossEntropyOp::verify() {
-    return;
+    // input and ground truth should be the same shape
+    if (input->dimension.size() != groundTruth->dimension.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < input->dimension.size(); i++) {
+        if (input->dimension[i] != groundTruth->dimension[i]) {
+            return false;
+        }
+    }
+
+    // output should be a scalar
+    if (output->dimension.size() != 1 || output->dimension[0] != 1) {
+        return false;
+    }
+
+    return true;
 };
 
 std::string CrossEntropyOp::print() {
-    return;
+    return "CrossentropyOp(input: " + input->print() + " → " + output->print() + ")";
 };
 
 void CrossEntropyOp::forward() {
-    return;
+    size_t batch = input->dimension[0];
+    size_t classes = input->dimension[1];
+
+    float total_loss = 0.0f;
+    for (size_t b = 0; b < batch; b++) {
+        float sample_loss = 0.0f;
+        for (size_t c = 0; c < classes; c++) {
+            // the epsilon value 
+            float epsilon = 1e-8f;
+            float pred = input->getValue({b, c}) + epsilon;
+            sample_loss += groundTruth->getValue({b, c}) * std::log(pred);
+        }
+        // sample across batches
+        total_loss += -sample_loss;
+    }
+
+    output->setValue({0}, total_loss / batch);
 };
 
 void CrossEntropyOp::backward() {
-    return;
+    size_t batch = input->dimension[0];
+    size_t classes = input->dimension[1];
+    float incomingGrad = output->getGrad({0});
+
+    for (size_t b = 0; b < batch; b++) {
+        for (size_t c = 0; c < classes; c++) {
+            float pred = input->getValue({b, c}) + 1e-8f;
+            float grad = (-groundTruth->getValue({b, c}) / pred) * incomingGrad / batch;
+            input->accumulateGrad({b, c}, grad);
+        }
+    }
 };
 
 void CrossEntropyOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
-    return;
+    if (input == oldTensor) input = newTensor;                                                                           
+    if (output == oldTensor) output = newTensor;
 };

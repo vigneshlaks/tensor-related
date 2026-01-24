@@ -43,9 +43,5 @@ void test_ir(const std::string& filename) {
 
 int main(int argc, char* argv[]) {
     test_ir("irs/two_dimensional/1_layer.json");
-    // std::cout << "\n\n";
-    // test_ir("irs/two_dimensional/no_quantization.json");
-    // std::cout << "\n\n";
-    // test_ir("irs/two_dimensional/large_matrix.json");
     return 0;
 }
