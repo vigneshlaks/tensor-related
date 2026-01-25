@@ -1,4 +1,12 @@
+#include <iostream>
 #include "../include/optimizers.h"
+// everything related to parameters
+
+void Optimizers::init() {
+    // seed loss gradient to 1.0 to start backprop
+    list->tail->output->grad[0] = 1.0f;
+};
+
 
 void Optimizers::forward() {
     Node* current = list->head;
@@ -39,7 +47,10 @@ void SGD::descentStep() {
     Node* current = list->head;
 
     while (current != nullptr && !current->id.empty()) {
+        // check if operation is trainable
+        // really only matmul
         if (current->trainable && current->output != nullptr) {
+            // update outputs
             for (size_t i = 0; i < current->output->storage.size(); i++) {
                 current->output->storage[i] -= learningRate * current->output->grad[i];
             }
@@ -69,7 +80,10 @@ void Adam::descentStep() {
     t++;
     Node* current = list->head;
 
+    // null or boundary node
     while (current != nullptr && !current->id.empty()) {
+        // check if operation is trainable
+        // really only matmul
         if (current->trainable && current->output != nullptr) {
             for (size_t i = 0; i < current->output->storage.size(); i++) {
                 // Adam update formula

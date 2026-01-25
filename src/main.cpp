@@ -1,8 +1,9 @@
 #include <iostream>
 #include "../include/types.h"
 #include "../include/ops.h"
-#include "../include/hlo.h"
+#include "../include/frontend.h"
 #include "../include/passes.h"
+#include "../include/optimizers.h"
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -29,19 +30,29 @@ void test_ir(const std::string& filename) {
         std::cout << "\nAfter optimization:" << std::endl;
         printLinkedList(list);
 
-        Node* current = list.head;
-        while (current != nullptr) {
-            std::cout << "Executing: " << current->id << std::endl;
-            if (current->operation != nullptr) {
-                current->operation->forward();
-            }
-            current = current->next;
+        int numEpochs = 5;
+        // learning rate
+        SGD sgd = SGD(0.01f, &list);
+
+        std::cout << "\nTraining:" << std::endl;
+        for (int i = 0; i < numEpochs; i++) {
+            sgd.forward();
+
+            // print loss
+            float loss = list.tail->output->storage[0];
+            std::cout << "Epoch " << i << " | Loss: " << loss << std::endl;
+
+            // sets loss of tail node to 1
+            sgd.init();
+            sgd.backward();
+            sgd.descentStep();
+            sgd.zeroGrad();
         }
 
         std::cout << "\nExecution complete!" << std::endl;
-}
+};
 
 int main(int argc, char* argv[]) {
-    test_ir("irs/two_dimensional/1_layer.json");
+    test_ir("irs/two_dimensional/test.json");
     return 0;
 }

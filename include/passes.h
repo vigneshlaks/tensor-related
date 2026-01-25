@@ -3,7 +3,7 @@
 #define PASSES_H
 
 #include <vector>
-#include "hlo.h"
+#include "frontend.h"
 #include "ops.h"
 #include "types.h"
 

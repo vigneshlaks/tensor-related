@@ -1,7 +1,7 @@
 #ifndef OPTIMIZERS_H
 #define OPTIMIZERS_H
 
-#include "hlo.h"
+#include "frontend.h"
 #include <vector>
 #include <cmath>
 #include <unordered_map>
@@ -13,11 +13,12 @@ protected:
     LinkedList* list;
 
 public:
-    Optimizers(float lr, LinkedList* l) : learningRate(lr), list(l) {}
+    Optimizers(float lr, LinkedList* l) : learningRate(lr), list(l) {};
 
     void forward();
     void backward();
     void zeroGrad();
+    void init();
 
     virtual void descentStep() = 0;
     virtual ~Optimizers() = default;

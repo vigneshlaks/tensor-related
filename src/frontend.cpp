@@ -1,5 +1,5 @@
 
-#include "../include/hlo.h"
+#include "../include/frontend.h"
 #include "../include/passes.h"
 #include <map>
 #include <iostream>
@@ -55,8 +55,9 @@ LinkedList parseJSON(json inputIR) {
 LinkedList parseInputs(json instrs) {
     Node* head = nullptr;
 
-    // create start node
+    // create start boundary node
     Node* curr = new Node;
+    // previous of boundary is null
     curr->prev = head;
  
     // set to first node
@@ -78,8 +79,7 @@ LinkedList parseInputs(json instrs) {
         curr->id = id;
         curr->opType = opTypeMap[instr["op"].get<std::string>()];
 
-        if (instr["op"] == "const")
-        {
+        if (instr["op"] == "const") {
             auto storage = instr["value"].get<std::vector<float>>();
             auto dim = instr["dim"].get<std::vector<size_t>>();
             std::shared_ptr<Tensor> output = std::make_shared<Tensor>(dim, storage);
@@ -91,8 +91,7 @@ LinkedList parseInputs(json instrs) {
                 curr->trainable = instr["trainable"].get<bool>();
             }
         }
-        else if (instr["op"] == "matmul")
-        {
+        else if (instr["op"] == "matmul") {
             // get the input tensors
             std::shared_ptr<Tensor> lhs = nodeMap[instr["args"][0].get<std::string>()]->output;
             std::shared_ptr<Tensor> rhs = nodeMap[instr["args"][1].get<std::string>()]->output;
@@ -109,10 +108,11 @@ LinkedList parseInputs(json instrs) {
             std::shared_ptr<Tensor> output = std::make_shared<Tensor>(output_dim);
 
             curr->output = output;
+            // mark as trainable for optimizers
+            curr->trainable = true;
             curr->operation = std::make_unique<MatMulOp>(lhs, rhs, output);
         }
-        else if (instr["op"] == "relu")
-        {
+        else if (instr["op"] == "relu") {
             std::shared_ptr<Tensor> input = nodeMap[instr["args"][0].get<std::string>()]->output;
             
             // copy input dimension
@@ -120,15 +120,33 @@ LinkedList parseInputs(json instrs) {
             curr->output = output;
             curr->operation = std::make_unique<ReluOp>(input, output);
         }
-        else if (instr["op"] == "mse_loss")
-        {
+        else if (instr["op"] == "softmax") {
+            std::shared_ptr<Tensor> input;
+
+        }
+        // the dim and storage associated with any loss node
+        // refers to the ground truth
+        else if (instr["op"] == "mse_loss") {
             std::shared_ptr<Tensor> input = nodeMap[instr["args"][0].get<std::string>()]->output;
-            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(input->dimension);
+            // losses are scalars
+            std::vector<size_t> output_dim = {1};
+            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(output_dim);
             std::vector<size_t> dim = instr["dim"].get<std::vector<size_t>>();
             std::vector<float> storage = instr["value"].get<std::vector<float>>();
             std::shared_ptr<Tensor> ground_truth = std::make_shared<Tensor>(dim, storage);
             curr->output = output;
             curr->operation = std::make_unique<MSEOp>(input, output, ground_truth);
+        }
+        else if (instr["op"] == "ce_loss") {
+            std::shared_ptr<Tensor> input = nodeMap[instr["args"][0].get<std::string>()]->output;
+            // losses are scalars
+            std::vector<size_t> output_dim = {1};
+            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(output_dim);
+            std::vector<size_t> dim = instr["dim"].get<std::vector<size_t>>();
+            std::vector<float> storage = instr["value"].get<std::vector<float>>();
+            std::shared_ptr<Tensor> ground_truth = std::make_shared<Tensor>(dim, storage);
+            curr->output = output;
+            curr->operation = std::make_unique<CrossEntropyOp>(input, output, ground_truth);
         }
 
         // store in map
@@ -143,6 +161,8 @@ LinkedList parseInputs(json instrs) {
         curr = next;
     }
 
+    // curr is the end boundary node
+    // curr->prev is the last instruction parsed
     Node* tail = curr->prev;
 
     return {

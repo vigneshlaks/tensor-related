@@ -1,0 +1,34 @@
+{
+  "input": [
+    {
+      "id": "input",
+      "op": "const",
+      "value": [1, 2],
+      "dim": [1, 2]
+    },
+    {
+      "id": "w1",
+      "op": "const",
+      "value": [1, 2, 3, 4],
+      "dim": [2, 2],
+      "trainable": true
+    },
+    {
+      "id": "pre_activated",
+      "op": "matmul",
+      "args": ["input", "w1"]
+    },
+    {
+      "id": "y_hat",
+      "op": "relu",
+      "args": ["pre_activated"]
+    },
+    {
+      "id": "mse",
+      "op": "mse_loss",
+      "value": [5, 4],
+      "dim": [1, 2],
+      "args": ["y_hat"]
+    }
+  ]
+}

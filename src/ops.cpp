@@ -225,15 +225,11 @@ void MatMulOp::forward() {
         // first dimension is batch for lhs 
         for (size_t i = 0; i < output->dimension.at(0); i++) {
             for (size_t j = 0; j < output->dimension.at(1); j++) {
-                // rhs->dimension.at(0) refers to the intermediate column
+                float sum = 0.0f;
                 for (size_t k = 0; k < rhs->dimension.at(0); k++) {
-                    float lhs_val = lhs->getValue({i, k});
-                    float rhs_val = rhs->getValue({k, j});
-                    float curr_val = output->getValue({i, j});
-                    float newValue = lhs_val * rhs_val + curr_val;
-
-                    output->setValue({i, j}, newValue);
+                    sum += lhs->getValue({i, k}) * rhs->getValue({k, j});
                 }
+                output->setValue({i, j}, sum);
             }
         }
     } else {
@@ -372,7 +368,6 @@ void MatMulReluOp::forward() {
                     float newValue = lhs->getValue({i, k}) * rhs->getValue({k, j}) + output->getValue({i, j});
                     output->setValue({i, j}, newValue);
                 }
-
                 if (output->getValue({i, j}) < 0) {
                     output->setValue({i, j}, 0);
                 }
@@ -450,7 +445,7 @@ bool MSEOp::verify() {
     if (output->dimension.size() != 1) {
         return false;
     }
-    
+
     return true;
 };
 
@@ -460,8 +455,6 @@ std::string MSEOp::print() {
 
 void MSEOp::forward() {
     if (backend == CPU) {
-        // dim[0] = batch, dim[1] = features
-        // MSE averaged over all elements
         size_t batch = input->dimension[0];
         size_t features = input->dimension[1];
 

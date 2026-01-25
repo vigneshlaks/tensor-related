@@ -18,7 +18,7 @@ enum Backend
 class Op
 {
 public:
-    Backend backend = GPU;
+    Backend backend = CPU;
     int setBackend(Backend b);
     virtual ~Op() = default;
     virtual bool verify() = 0;
