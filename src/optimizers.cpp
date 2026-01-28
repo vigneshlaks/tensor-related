@@ -1,17 +1,35 @@
 #include <iostream>
 #include "../include/optimizers.h"
+#include "../include/ops.h"
 // everything related to parameters
 
-void Optimizers::init() {
-    // seed loss gradient to 1.0 to start backprop
-    list->tail->output->grad[0] = 1.0f;
-};
-
-
-void Optimizers::forward() {
-    Node* current = list->head;
+// might have to change params for other inputs
+void Optimizers::forward(std::vector<uint8_t> input, uint8_t output) {
+    Node *current = list->head;
 
     while (current != nullptr && !current->id.empty()) {
+        // std::cout << "Node: " << current->id;
+        // if (current->operation) {
+        //     std::cout << " | Op: " << typeid(*current->operation).name();
+        // }
+        // if (current->output) {
+        //     std::cout << " | Output size: " << current->output->storage.size();
+        // }
+        // std::cout << std::endl;
+
+        // checks to fill inputs (skip trainable weights)
+        if (dynamic_cast<ConstOp*>(current->operation.get()) != nullptr && !current->trainable) {
+            // fill Tensor with input
+            for (int i = 0; i < current->output->storage.size(); i++) {
+                current->output->storage[i] = input[i];
+            }
+        }
+        // if loss op
+        else if (LossOp* lossOp = dynamic_cast<LossOp*>(current->operation.get())) {
+            lossOp->groundTruth->storage[0] = output;
+        }
+        
+        // regular iteration and calling computationg
         if (current->operation != nullptr) {
             current->operation->forward();
         }
@@ -20,10 +38,13 @@ void Optimizers::forward() {
 };
 
 void Optimizers::backward() {
-    Node* current = list->tail;
+    Node *current = list->tail;
+    list->tail->output->grad[0] = 1.0f;
 
-    while (current != nullptr) {
-        if (current->operation != nullptr) {
+    while (current != nullptr)
+    {
+        if (current->operation != nullptr)
+        {
             current->operation->backward();
         }
         current = current->prev;
@@ -31,11 +52,14 @@ void Optimizers::backward() {
 };
 
 void Optimizers::zeroGrad() {
-    Node* current = list->head;
+    Node *current = list->head;
 
-    while (current != nullptr && !current->id.empty()) {
-        if (current->output != nullptr) {
-            for (size_t i = 0; i < current->output->grad.size(); i++) {
+    while (current != nullptr && !current->id.empty())
+    {
+        if (current->output != nullptr)
+        {
+            for (size_t i = 0; i < current->output->grad.size(); i++)
+            {
                 current->output->grad[i] = 0.0f;
             }
         }
@@ -44,14 +68,17 @@ void Optimizers::zeroGrad() {
 };
 
 void SGD::descentStep() {
-    Node* current = list->head;
+    Node *current = list->head;
 
-    while (current != nullptr && !current->id.empty()) {
+    while (current != nullptr && !current->id.empty())
+    {
         // check if operation is trainable
         // really only matmul
-        if (current->trainable && current->output != nullptr) {
+        if (current->trainable && current->output != nullptr)
+        {
             // update outputs
-            for (size_t i = 0; i < current->output->storage.size(); i++) {
+            for (size_t i = 0; i < current->output->storage.size(); i++)
+            {
                 current->output->storage[i] -= learningRate * current->output->grad[i];
             }
         }
@@ -59,15 +86,17 @@ void SGD::descentStep() {
     }
 };
 
-Adam::Adam(float lr, LinkedList* l, float b1, float b2, float e) : Optimizers(lr, l) {
+Adam::Adam(float lr, LinkedList *l, float b1, float b2, float e) : Optimizers(lr, l) {
     beta1 = b1;
     beta2 = b2;
     epsilon = e;
 
-    Node* current = list->head;
+    Node *current = list->head;
 
-    while (current != nullptr && !current->id.empty()) {
-        if (current->trainable && current->output != nullptr) {
+    while (current != nullptr && !current->id.empty())
+    {
+        if (current->trainable && current->output != nullptr)
+        {
             size_t size = current->output->storage.size();
             m[current->id] = std::vector<float>(size, 0.0f);
             v[current->id] = std::vector<float>(size, 0.0f);
@@ -78,14 +107,17 @@ Adam::Adam(float lr, LinkedList* l, float b1, float b2, float e) : Optimizers(lr
 
 void Adam::descentStep() {
     t++;
-    Node* current = list->head;
+    Node *current = list->head;
 
     // null or boundary node
-    while (current != nullptr && !current->id.empty()) {
+    while (current != nullptr && !current->id.empty())
+    {
         // check if operation is trainable
         // really only matmul
-        if (current->trainable && current->output != nullptr) {
-            for (size_t i = 0; i < current->output->storage.size(); i++) {
+        if (current->trainable && current->output != nullptr)
+        {
+            for (size_t i = 0; i < current->output->storage.size(); i++)
+            {
                 // Adam update formula
                 float g = current->output->grad[i];
 

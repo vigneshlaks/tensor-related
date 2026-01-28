@@ -36,7 +36,9 @@ Metadata parseMetaData(json inputIR) {
         if (type == "backend") {
             meta.passes.push_back(new BackendPass(backendMap[config["backend"]]));
         } else if (type == "fusion") {
-            meta.passes.push_back(new FusionPass());
+            if (config["enabled"].get<bool>()) {
+                meta.passes.push_back(new FusionPass());
+            }
         } else if (type == "quantization") {
             meta.passes.push_back(new QuantizationPass(precisionMap[config["precision"]]));
         }
@@ -52,10 +54,11 @@ LinkedList parseJSON(json inputIR) {
     return parseInputs(inputIR);
 }
 
+// gives the shape of the neural network
+// the actual values are filled later
 LinkedList parseInputs(json instrs) {
     Node* head = nullptr;
 
-    // create start boundary node
     Node* curr = new Node;
     // previous of boundary is null
     curr->prev = head;
@@ -72,7 +75,7 @@ LinkedList parseInputs(json instrs) {
         {"relu", OpType::Relu},
         {"mse_loss", OpType::MSE}
     };
-
+    
     for (json instr : instrs) {
         std::string id = instr["id"].get<std::string>();
 
@@ -80,9 +83,8 @@ LinkedList parseInputs(json instrs) {
         curr->opType = opTypeMap[instr["op"].get<std::string>()];
 
         if (instr["op"] == "const") {
-            auto storage = instr["value"].get<std::vector<float>>();
             auto dim = instr["dim"].get<std::vector<size_t>>();
-            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(dim, storage);
+            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(dim);
 
             curr->output = output;
             curr->operation = std::make_unique<ConstOp>(output);
@@ -109,7 +111,9 @@ LinkedList parseInputs(json instrs) {
 
             curr->output = output;
             // mark as trainable for optimizers
-            curr->trainable = true;
+            if (instr.contains("trainable")) {
+                curr->trainable = instr["trainable"].get<bool>();
+            }
             curr->operation = std::make_unique<MatMulOp>(lhs, rhs, output);
         }
         else if (instr["op"] == "relu") {
@@ -120,6 +124,7 @@ LinkedList parseInputs(json instrs) {
             curr->output = output;
             curr->operation = std::make_unique<ReluOp>(input, output);
         }
+        // TODO
         else if (instr["op"] == "softmax") {
             std::shared_ptr<Tensor> input;
 
@@ -132,8 +137,7 @@ LinkedList parseInputs(json instrs) {
             std::vector<size_t> output_dim = {1};
             std::shared_ptr<Tensor> output = std::make_shared<Tensor>(output_dim);
             std::vector<size_t> dim = instr["dim"].get<std::vector<size_t>>();
-            std::vector<float> storage = instr["value"].get<std::vector<float>>();
-            std::shared_ptr<Tensor> ground_truth = std::make_shared<Tensor>(dim, storage);
+            std::shared_ptr<Tensor> ground_truth = std::make_shared<Tensor>(dim);
             curr->output = output;
             curr->operation = std::make_unique<MSEOp>(input, output, ground_truth);
         }
@@ -143,8 +147,7 @@ LinkedList parseInputs(json instrs) {
             std::vector<size_t> output_dim = {1};
             std::shared_ptr<Tensor> output = std::make_shared<Tensor>(output_dim);
             std::vector<size_t> dim = instr["dim"].get<std::vector<size_t>>();
-            std::vector<float> storage = instr["value"].get<std::vector<float>>();
-            std::shared_ptr<Tensor> ground_truth = std::make_shared<Tensor>(dim, storage);
+            std::shared_ptr<Tensor> ground_truth = std::make_shared<Tensor>(dim);
             curr->output = output;
             curr->operation = std::make_unique<CrossEntropyOp>(input, output, ground_truth);
         }

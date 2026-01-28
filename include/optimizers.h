@@ -15,10 +15,9 @@ protected:
 public:
     Optimizers(float lr, LinkedList* l) : learningRate(lr), list(l) {};
 
-    void forward();
+    void forward(std::vector<uint8_t> input, uint8_t output);
     void backward();
     void zeroGrad();
-    void init();
 
     virtual void descentStep() = 0;
     virtual ~Optimizers() = default;

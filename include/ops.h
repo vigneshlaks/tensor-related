@@ -31,6 +31,23 @@ public:
     virtual void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) = 0;
 };
 
+// for loss functions / nodes / criterion
+class LossOp : public Op
+{
+public:
+    Backend backend = CPU;
+    std::shared_ptr<Tensor> groundTruth;
+    int setBackend(Backend b);
+    virtual ~LossOp() = default;
+    virtual bool verify() = 0;
+    virtual std::string print() = 0;
+    virtual void forward() = 0;
+    virtual void backward() = 0;
+
+    virtual std::vector<size_t> inferOutputShape() = 0;
+    virtual void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) = 0;
+};
+
 class ConstOp : public Op
 {
 public:
@@ -140,25 +157,7 @@ public:
     void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
-class MSEOp : public Op
-{
-public:
-    std::shared_ptr<Tensor> input;
-    std::shared_ptr<Tensor> output;
-    std::shared_ptr<Tensor> ground_truth;
-
-    MSEOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o, std::shared_ptr<Tensor> g)
-        : input(i), output(o), ground_truth(g) {};
-
-    bool verify() override;
-    std::string print() override;
-    void forward() override;
-    void backward() override;
-    std::vector<size_t> inferOutputShape() override;
-    void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
-};
-
-class SoftmaxOp : public Op 
+class SoftmaxOp : public Op
 {
 public:
     std::shared_ptr<Tensor> input;
@@ -175,15 +174,34 @@ public:
     void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
 };
 
-class CrossEntropyOp : public Op 
+// losses
+class CrossEntropyOp : public LossOp
 {
 public:
     std::shared_ptr<Tensor> input;
     std::shared_ptr<Tensor> output;
-    std::shared_ptr<Tensor> groundTruth;
-
+    
+    // fill parent ground truth
     CrossEntropyOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o, std::shared_ptr<Tensor> g) :
-        input(i), output(o), groundTruth(g) {};
+        input(i), output(o) { groundTruth = g; }
+
+    bool verify() override;
+    std::string print() override;
+    void forward() override;
+    void backward() override;
+    std::vector<size_t> inferOutputShape() override;
+    void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) override;
+};
+
+class MSEOp : public LossOp
+{
+public:
+    std::shared_ptr<Tensor> input;
+    std::shared_ptr<Tensor> output;
+
+    // fill parent ground truth
+    MSEOp(std::shared_ptr<Tensor> i, std::shared_ptr<Tensor> o, std::shared_ptr<Tensor> g)
+        : input(i), output(o) { groundTruth = g; }
 
     bool verify() override;
     std::string print() override;

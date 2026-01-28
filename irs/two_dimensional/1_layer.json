@@ -10,7 +10,7 @@
       {
         "type": "fusion",
         "config": {
-          "enabled": true
+          "enabled": false
         }
       },
       {
@@ -32,7 +32,8 @@
       "id": "w1",
       "op": "const",
       "value": [1, 2, 3, 4],
-      "dim": [2, 2]
+      "dim": [2, 2],
+      "trainable": true
     },
     {
       "id": "pre_activated",

@@ -430,13 +430,13 @@ void MatMulReluOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shar
 
 bool MSEOp::verify() {
     // input and ground truth should be the same dimension
-    if (input->dimension.size() != ground_truth->dimension.size()) {
+    if (input->dimension.size() != groundTruth->dimension.size()) {
         return false;
     }
 
     // check same shape
     for (int i = 0; i < input->dimension.size(); i++) {
-        if (input->dimension[i] != ground_truth->dimension[i]) {
+        if (input->dimension[i] != groundTruth->dimension[i]) {
             return false;
         }
     }
@@ -461,7 +461,7 @@ void MSEOp::forward() {
         float sum = 0.0f;
         for (size_t b = 0; b < batch; b++) {
             for (size_t f = 0; f < features; f++) {
-                float diff = input->getValue({b, f}) - ground_truth->getValue({b, f});
+                float diff = input->getValue({b, f}) - groundTruth->getValue({b, f});
                 sum += diff * diff;
             }
         }
@@ -472,10 +472,10 @@ void MSEOp::forward() {
         #ifdef CUDA_FOUND
             float* h_output = &(output->storage[0]);
             float* h_input = &(input->storage[0]);
-            float* h_ground_truth = &(ground_truth->storage[0]);
+            float* h_groundTruth = &(h_groundTruth->storage[0]);
             int size = input->storage.size();
 
-            MSE(h_output, h_input, h_ground_truth, size);
+            MSE(h_output, h_input, h_groundTruth, size);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -491,7 +491,7 @@ void MSEOp::backward() {
 
         for (size_t b = 0; b < batch; b++) {
             for (size_t f = 0; f < features; f++) {
-                float diff = input->getValue({b, f}) - ground_truth->getValue({b, f});
+                float diff = input->getValue({b, f}) - groundTruth->getValue({b, f});
                 input->accumulateGrad({b, f}, scale * diff * incomingGradient);
             }
         }

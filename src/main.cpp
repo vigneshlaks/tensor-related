@@ -41,20 +41,17 @@ void test_ir(const std::string& filename) {
         // learning rate
         SGD sgd = SGD(0.01f, &list);
 
-        std::cout << "\nTraining:" << std::endl;
-        for (int i = 0; i < numEpochs; i++) {
-            sgd.forward();
-
-            // print loss
-            float loss = list.tail->output->storage[0];
-            std::cout << "Epoch " << i << " | Loss: " << loss << std::endl;
-
-            // sets loss of tail node to 1
-            sgd.init();
-            sgd.backward();
-            sgd.descentStep();
-            sgd.zeroGrad();
-        }
+        // std::cout << "\nTraining:" << std::endl;
+        // for (int i = 0; i < numEpochs; i++) {
+        //     sgd.forward();
+        //     // print loss
+        //     float loss = list.tail->output->storage[0];
+        //     std::cout << "Epoch " << i << " | Loss: " << loss << std::endl;
+        //     // sets grad of tail node to 1
+        //     sgd.backward();
+        //     sgd.descentStep();
+        //     sgd.zeroGrad();
+        // }
 
         std::cout << "\nExecution complete!" << std::endl;
 }
@@ -93,7 +90,7 @@ auto loadData(std::string inputs, std::string outputs) {
     data.images.resize(numImages);
     for (uint32_t i = 0; i < numImages; i++) {
         data.images[i].resize(numRows * numCols);
-        // the char casting to
+        // the char casting to  
         // work with file.read
         // .data() get the memory location
         // imgFile.read and place into the .data memory location
@@ -129,5 +126,58 @@ int main(int argc, char* argv[]) {
 
     // ir testing
     std::cout << "Train images: " << trainData.images.size() << std::endl;
-    std::cout << "Train labels: " << trainData.labels.size() << std::endl;   
+    std::cout << "Train labels: " << trainData.labels.size() << std::endl;
+
+    std::string filename = "irs/two_dimensional/1_layer.json";
+
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cout << "Failed to open " << filename << std::endl;
+        return 0;
+    }
+    json inputIR;
+    file >> inputIR;
+
+    Metadata meta = parseMetaData(inputIR);
+    LinkedList list = parseJSON(inputIR);
+
+    std::vector<uint8_t> input = trainData.images[0];
+    uint8_t output = trainData.labels[0];
+    SGD sgd = SGD(0.01f, &list);
+    int numEpochs = 5;
+    for (int i = 0; i < numEpochs; i++) {
+        // places values into const nodes during forward
+        // pass input and output to linked list to fill before computation
+        // one input
+        sgd.zeroGrad(); 
+        sgd.forward(input, output);
+        std::cout << "Loss: " << list.tail->output->storage[0] << std::endl;
+        
+        sgd.backward();
+
+        // Debug: print forward values
+        std::cout << "y_hat values: ";
+        for (auto v : list.nodeMap["y_hat"]->output->storage) std::cout << v << " ";
+        std::cout << std::endl;
+        std::cout << "pre_activated values: ";
+        for (auto v : list.nodeMap["pre_activated"]->output->storage) std::cout << v << " ";
+        std::cout << std::endl;
+
+        // Debug: print gradients at each layer
+        std::cout << "mse grad: " << list.nodeMap["mse"]->output->grad[0] << std::endl;
+        std::cout << "y_hat grads: ";
+        for (auto g : list.nodeMap["y_hat"]->output->grad) std::cout << g << " ";
+        std::cout << std::endl;
+        std::cout << "pre_activated grads: ";
+        for (auto g : list.nodeMap["pre_activated"]->output->grad) std::cout << g << " ";
+        std::cout << std::endl;
+        std::cout << "w1 grads: ";
+        for (auto g : list.nodeMap["w1"]->output->grad) std::cout << g << " ";
+        std::cout << std::endl;
+
+        sgd.descentStep();
+    }
+
+    return 1;
 }
+ 
