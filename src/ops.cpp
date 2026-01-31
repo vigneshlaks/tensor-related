@@ -220,9 +220,6 @@ std::string MatMulOp::print() {
 
 void MatMulOp::forward() {
     if (backend == CPU) {
-        // inline CPU for convenience
-        // assume 2 dimensions for now
-        // first dimension is batch for lhs 
         for (size_t i = 0; i < output->dimension.at(0); i++) {
             for (size_t j = 0; j < output->dimension.at(1); j++) {
                 float sum = 0.0f;

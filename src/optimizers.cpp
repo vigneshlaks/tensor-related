@@ -4,6 +4,7 @@
 // everything related to parameters
 
 // might have to change params for other inputs
+// places inputs before computation
 void Optimizers::forward(std::vector<uint8_t> input, uint8_t output) {
     Node *current = list->head;
 
@@ -29,7 +30,7 @@ void Optimizers::forward(std::vector<uint8_t> input, uint8_t output) {
             lossOp->groundTruth->storage[0] = output;
         }
         
-        // regular iteration and calling computationg
+        // calling computation
         if (current->operation != nullptr) {
             current->operation->forward();
         }

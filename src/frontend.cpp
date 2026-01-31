@@ -4,6 +4,7 @@
 #include <map>
 #include <iostream>
 #include <functional>
+#include <random>
 
 LinkedList parseInputs(json instrs);
 
@@ -85,6 +86,19 @@ LinkedList parseInputs(json instrs) {
         if (instr["op"] == "const") {
             auto dim = instr["dim"].get<std::vector<size_t>>();
             std::shared_ptr<Tensor> output = std::make_shared<Tensor>(dim);
+            std::mt19937 gen(12345);
+
+            // storage is automatically set to init
+            if (instr.contains("init")) {
+                std::string initType = instr["init"].get<std::string>();
+                if (initType == "xavier") {
+                    float limit = std::sqrt(6.0f / (dim[0] + dim[1]));
+                    std::uniform_real_distribution<float> dist(-limit, limit);
+                    for (size_t i = 0; i < output->storage.size(); i++) {
+                        output->storage[i] = dist(gen);
+                    }
+                }
+            }
 
             curr->output = output;
             curr->operation = std::make_unique<ConstOp>(output);
