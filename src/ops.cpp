@@ -396,7 +396,7 @@ void MatMulReluOp::backward() {
             }
         }
 
-        // grad_rhs = lhs^T @ (output->grad * relu_mask)
+        // grad_rhs = lhs^T @ (output->grad * relu_mask)`
         for (size_t k = 0; k < rhs->dimension[0]; k++) {
             for (size_t j = 0; j < rhs->dimension[1]; j++) {
                 float sum = 0.0f;
@@ -614,7 +614,6 @@ std::string SoftmaxOp::print() {
 
 void SoftmaxOp::forward() {
     if (backend == CPU) {
-        // dim[0] = batch, dim[1] = classes
         size_t batch = input->dimension[0];
         size_t classes = input->dimension[1];
 
@@ -646,7 +645,31 @@ void SoftmaxOp::forward() {
 };
 
 void SoftmaxOp::backward() {
-    throw std::runtime_error("Softmax is an inference only operator");
+    if (backend == CPU) {
+        size_t batch = input->dimension[0];
+        size_t classes = input->dimension[1];
+
+        for (size_t b = 0; b < batch; b++) {
+            // dot product of grad and softmax output
+            float dot = 0.0f;
+            for (size_t c = 0; c < classes; c++) {
+                dot += output->getGrad({b, c}) * output->getValue({b, c});
+            }
+
+            // input gradient: s * (g - dot)
+            for (size_t c = 0; c < classes; c++) {
+                float s = output->getValue({b, c});
+                float g = output->getGrad({b, c});
+                input->accumulateGrad({b, c}, s * (g - dot));
+            }
+        }
+    } else {
+        #ifdef CUDA_FOUND
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    }
 };
 
 void SoftmaxOp::updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) {
@@ -690,6 +713,9 @@ void CrossEntropyOp::forward() {
             // the epsilon value 
             float epsilon = 1e-8f;
             float pred = input->getValue({b, c}) + epsilon;
+            // in the case of one hot encoding
+            // this evaluate to zero except for the correct prediction
+            // groundTruth->getValue({b, c}) would be 0
             sample_loss += groundTruth->getValue({b, c}) * std::log(pred);
         }
         // sample across batches

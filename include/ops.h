@@ -27,7 +27,6 @@ public:
     virtual void backward() = 0;
 
     virtual std::vector<size_t> inferOutputShape() = 0;
-
     virtual void updateTensorRefs(std::shared_ptr<Tensor> oldTensor, std::shared_ptr<Tensor> newTensor) = 0;
 };
 

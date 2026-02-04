@@ -25,14 +25,13 @@
     {
       "id": "input",
       "op": "const",
-      "value": [1, 2],
-      "dim": [1, 2]
+      "dim": [1, 784]
     },
     {
       "id": "w1",
       "op": "const",
-      "value": [1, 2, 3, 4],
-      "dim": [2, 2],
+      "dim": [784, 128],
+      "init": "xavier",
       "trainable": true
     },
     {
@@ -48,7 +47,6 @@
     {
       "id": "mse",
       "op": "mse_loss",
-      "value": [5, 4],
       "dim": [1, 2],
       "args": ["y_hat"]
     }

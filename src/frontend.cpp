@@ -3,6 +3,7 @@
 #include "../include/passes.h"
 #include <map>
 #include <iostream>
+#include <fstream>
 #include <functional>
 #include <random>
 
@@ -44,7 +45,6 @@ Metadata parseMetaData(json inputIR) {
             meta.passes.push_back(new QuantizationPass(precisionMap[config["precision"]]));
         }
     }
-
     return meta;
 }
 
@@ -57,6 +57,7 @@ LinkedList parseJSON(json inputIR) {
 
 // gives the shape of the neural network
 // the actual values are filled later
+// does initializations (xavier, zero)
 LinkedList parseInputs(json instrs) {
     Node* head = nullptr;
 
@@ -77,6 +78,9 @@ LinkedList parseInputs(json instrs) {
         {"mse_loss", OpType::MSE}
     };
     
+    int seed = 12345;
+    std::mt19937 gen(seed);
+    
     for (json instr : instrs) {
         std::string id = instr["id"].get<std::string>();
 
@@ -86,16 +90,39 @@ LinkedList parseInputs(json instrs) {
         if (instr["op"] == "const") {
             auto dim = instr["dim"].get<std::vector<size_t>>();
             std::shared_ptr<Tensor> output = std::make_shared<Tensor>(dim);
-            std::mt19937 gen(12345);
 
-            // storage is automatically set to init
             if (instr.contains("init")) {
                 std::string initType = instr["init"].get<std::string>();
+                
+                // zero initialization is the default
                 if (initType == "xavier") {
-                    float limit = std::sqrt(6.0f / (dim[0] + dim[1]));
+                    float batchDim = dim[0];
+                    float inputDim = dim[1];
+
+                    float limit = std::sqrt(6.0f / (batchDim + inputDim));
                     std::uniform_real_distribution<float> dist(-limit, limit);
+
                     for (size_t i = 0; i < output->storage.size(); i++) {
                         output->storage[i] = dist(gen);
+                    }
+                }
+                else if (initType == "import") {
+                    // load weights from binary file
+                    std::string weightsPath;
+                    if (instr.contains("path")) {
+                        weightsPath = instr["path"].get<std::string>();
+                    } else {
+                        std::cerr << "Error: 'path' field required for import init type" << std::endl;
+                        continue;
+                    }
+                    std::ifstream weightsFile(weightsPath, std::ios::binary);
+                    if (!weightsFile.is_open()) {
+                        std::cerr << "Failed to open weights file: " << weightsPath << std::endl;
+                    } else {
+                        weightsFile.read(reinterpret_cast<char*>(output->storage.data()),
+                                        output->storage.size() * sizeof(float));
+                        weightsFile.close();
+                        std::cout << "Loaded weights from: " << weightsPath << std::endl;
                     }
                 }
             }
@@ -138,10 +165,13 @@ LinkedList parseInputs(json instrs) {
             curr->output = output;
             curr->operation = std::make_unique<ReluOp>(input, output);
         }
-        // TODO
         else if (instr["op"] == "softmax") {
-            std::shared_ptr<Tensor> input;
-
+            std::shared_ptr<Tensor> input = nodeMap[instr["args"][0].get<std::string>()]->output;
+            
+            // copy input dimension
+            std::shared_ptr<Tensor> output = std::make_shared<Tensor>(input->dimension);
+            curr->output = output;
+            curr->operation = std::make_unique<SoftmaxOp>(input, output);
         }
         // the dim and storage associated with any loss node
         // refers to the ground truth
@@ -155,7 +185,7 @@ LinkedList parseInputs(json instrs) {
             curr->output = output;
             curr->operation = std::make_unique<MSEOp>(input, output, ground_truth);
         }
-        else if (instr["op"] == "ce_loss") {
+        else if (instr["op"] == "cross_entropy") {
             std::shared_ptr<Tensor> input = nodeMap[instr["args"][0].get<std::string>()]->output;
             // losses are scalars
             std::vector<size_t> output_dim = {1};

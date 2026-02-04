@@ -128,7 +128,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Train images: " << trainData.images.size() << std::endl;
     std::cout << "Train labels: " << trainData.labels.size() << std::endl;
 
-    std::string filename = "irs/two_dimensional/1_layer.json";
+    std::string filename = "irs/mnist/mnist.json";
 
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -141,43 +141,24 @@ int main(int argc, char* argv[]) {
     Metadata meta = parseMetaData(inputIR);
     LinkedList list = parseJSON(inputIR);
 
-    std::vector<uint8_t> input = trainData.images[0];
-    uint8_t output = trainData.labels[0];
     SGD sgd = SGD(0.01f, &list);
-    int numEpochs = 5;
-    for (int i = 0; i < numEpochs; i++) {
-        // places values into const nodes during forward
-        // pass input and output to linked list to fill before computation
-        // one input
-        sgd.zeroGrad(); 
-        sgd.forward(input, output);
-        std::cout << "Loss: " << list.tail->output->storage[0] << std::endl;
-        
-        sgd.backward();
+    int numEpochs = 3;
+    size_t numSamples = 1000;  // subset for faster testing
 
-        // Debug: print forward values
-        std::cout << "y_hat values: ";
-        for (auto v : list.nodeMap["y_hat"]->output->storage) std::cout << v << " ";
-        std::cout << std::endl;
-        std::cout << "pre_activated values: ";
-        for (auto v : list.nodeMap["pre_activated"]->output->storage) std::cout << v << " ";
-        std::cout << std::endl;
+    std::cout << "\n--- Training ---" << std::endl;
+    for (int epoch = 0; epoch < numEpochs; epoch++) {
+        float epochLoss = 0.0f;
+`
+        for (size_t i = 0; i < numSamples; i++) {
+            sgd.zeroGrad();
+            sgd.forward(trainData.images[i], trainData.labels[i]);
+            epochLoss += list.tail->output->storage[0];
+            sgd.backward();
+            sgd.descentStep();
+        }
 
-        // Debug: print gradients at each layer
-        std::cout << "mse grad: " << list.nodeMap["mse"]->output->grad[0] << std::endl;
-        std::cout << "y_hat grads: ";
-        for (auto g : list.nodeMap["y_hat"]->output->grad) std::cout << g << " ";
-        std::cout << std::endl;
-        std::cout << "pre_activated grads: ";
-        for (auto g : list.nodeMap["pre_activated"]->output->grad) std::cout << g << " ";
-        std::cout << std::endl;
-        std::cout << "w1 grads: ";
-        for (auto g : list.nodeMap["w1"]->output->grad) std::cout << g << " ";
-        std::cout << std::endl;
-
-        sgd.descentStep();
+        std::cout << "Epoch " << epoch << " | Avg Loss: " << epochLoss / numSamples << std::endl;
     }
 
-    return 1;
+    return 0;
 }
- 
