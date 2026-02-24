@@ -41,18 +41,6 @@ void test_ir(const std::string& filename) {
         // learning rate
         SGD sgd = SGD(0.01f, &list);
 
-        // std::cout << "\nTraining:" << std::endl;
-        // for (int i = 0; i < numEpochs; i++) {
-        //     sgd.forward();
-        //     // print loss
-        //     float loss = list.tail->output->storage[0];
-        //     std::cout << "Epoch " << i << " | Loss: " << loss << std::endl;
-        //     // sets grad of tail node to 1
-        //     sgd.backward();
-        //     sgd.descentStep();
-        //     sgd.zeroGrad();
-        // }
-
         std::cout << "\nExecution complete!" << std::endl;
 }
 
@@ -106,7 +94,7 @@ auto loadData(std::string inputs, std::string outputs) {
     // similar for labels
     uint32_t lblMagic = readInt(lblFile);
     uint32_t numLabels = readInt(lblFile);
-    
+
     data.labels.resize(numLabels);
     lblFile.read((char*)data.labels.data(), numLabels);
     lblFile.close();
@@ -141,24 +129,40 @@ int main(int argc, char* argv[]) {
     Metadata meta = parseMetaData(inputIR);
     LinkedList list = parseJSON(inputIR);
 
+    PassManager pm(&list, meta.passes);
+    pm.runGlobal();
+
     SGD sgd = SGD(0.01f, &list);
     int numEpochs = 3;
-    size_t numSamples = 1000;  // subset for faster testing
+    size_t numSamples = 1000;
+
+    #ifdef CUDA_FOUND
+    std::cout << "Running on GPU" << std::endl;
+    #else
+    std::cout << "Running on CPU" << std::endl;
+    #endif
+    sgd.initDevice();
+
+    
 
     std::cout << "\n--- Training ---" << std::endl;
     for (int epoch = 0; epoch < numEpochs; epoch++) {
         float epochLoss = 0.0f;
-`
         for (size_t i = 0; i < numSamples; i++) {
             sgd.zeroGrad();
             sgd.forward(trainData.images[i], trainData.labels[i]);
+
+            list.tail->output->toHost();
             epochLoss += list.tail->output->storage[0];
+
             sgd.backward();
             sgd.descentStep();
         }
 
         std::cout << "Epoch " << epoch << " | Avg Loss: " << epochLoss / numSamples << std::endl;
     }
+
+    sgd.syncToHost();
 
     return 0;
 }

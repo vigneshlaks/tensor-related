@@ -1,8 +1,5 @@
 {                                                                                                                        
-    "metadata": {                                                                                                          
-      "passes": [                                                                                            
-        {"type": "backend", "config": {"backend": "cpu"}}                                                                  
-      ]                                                                                                          
+    "metadata": {                                                         
     },                                                                            
     "input": [
       {"id": "input", "op": "const", "dim": [1, 784], "init": "zeros"},

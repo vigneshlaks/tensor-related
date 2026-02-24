@@ -13,23 +13,6 @@
 #include <stdexcept>
 #include <cmath>
 
-namespace {
-    std::shared_ptr<Tensor> matrixTranspose(std::shared_ptr<Tensor> input) {
-        int rows = input->dimension.at(input->dimension.size() - 1);
-        int cols = input->dimension.at(input->dimension.size() - 2);
-        
-        std::shared_ptr<Tensor> output = std::make_shared<Tensor>(std::vector<size_t>(rows, cols));
-        
-        for (size_t i = 0; i < rows; i++) {
-            for (size_t j = 0; j < cols; j++) {
-                output->setValue({j, i}, input->getValue({i, j}));
-            }
-        }
-        
-        return output;
-    }
-};
-
 int Op::setBackend(Backend b) {
     this->backend = b;
     return 0;
@@ -119,30 +102,18 @@ void QuantizationOp::forward() {
             output->storage.at(i) = new_element;
         }
     } else {
-        #ifdef CUDA_FOUND
-            // Get the memory address for the first element
-            float* h_C = &(output->storage[0]);
-            float* h_A = &(lhs->storage[0]);
-            float* h_B = &(rhs->storage[0]);
-            quantization(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
-        #else
-            throw std::runtime_error("GPU Implementation Not Supported");
-        #endif
+        throw std::runtime_error("GPU Quantization Not Supported");
     }
 };
 
 void QuantizationOp::backward() {
     if (backend == CPU) {
-        // Copy gradients through unchanged
+        // Straight-through estimator: copy gradients through unchanged
         for (int i = 0; i < output->grad.size(); i++) {
             input->grad[i] = output->grad[i];
         }
     } else {
-        #ifdef CUDA_FOUND
-            throw std::runtime_error("GPU Implementation Not Supported");
-        #else
-            throw std::runtime_error("GPU Implementation Not Supported");
-        #endif
+        throw std::runtime_error("GPU Quantization Not Supported");
     }
 };
 
@@ -167,10 +138,12 @@ std::string DequantizationOp::print() {
 };
 
 void DequantizationOp::forward() {
+    if (quantOp == nullptr) {
+        throw std::runtime_error("DequantizationOp requires a linked QuantizationOp");
+    }
     if (backend == CPU) {
-        float scale = (quantOp != nullptr) ? quantOp->scale : 1.0f;
         for (int i = 0; i < input->storage.size(); i++) {
-            output->storage.at(i) = input->storage.at(i) * scale;
+            output->storage.at(i) = input->storage.at(i) * quantOp->scale;
         }
     } else {
         throw std::runtime_error("GPU Implementation Not Supported");
@@ -231,10 +204,8 @@ void MatMulOp::forward() {
         }
     } else {
         #ifdef CUDA_FOUND
-            float* h_C = &(output->storage[0]);
-            float* h_A = &(lhs->storage[0]);
-            float* h_B = &(rhs->storage[0]);
-            matmul(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[0]);
+            matmulDevice(output->d_storage, lhs->d_storage, rhs->d_storage,
+                         output->dimension[0], output->dimension[1], rhs->dimension[0]);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -266,7 +237,11 @@ void MatMulOp::backward() {
         }
     } else {
         #ifdef CUDA_FOUND
-            throw std::runtime_error("GPU Implementation Not Supported");
+            int M = lhs->dimension[0];
+            int K = lhs->dimension[1];
+            int N = rhs->dimension[1];
+            matmulBackwardDevice(lhs->d_grad, rhs->d_grad, output->d_grad,
+                                 lhs->d_storage, rhs->d_storage, M, K, N);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -314,10 +289,8 @@ void ReluOp::forward() {
         }
     } else {
         #ifdef CUDA_FOUND
-            float* h_input = &(input->storage[0]);
-            float* h_output = &(output->storage[0]);
             int size = input->storage.size();
-            relu(h_output, h_input, size);
+            reluDevice(output->d_storage, input->d_storage, size);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -332,7 +305,8 @@ void ReluOp::backward() {
         }
     } else {
         #ifdef CUDA_FOUND
-            throw std::runtime_error("GPU Implementation Not Supported");
+            int size = output->storage.size();
+            reluBackwardDevice(input->d_grad, output->d_grad, output->d_storage, size);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -372,10 +346,8 @@ void MatMulReluOp::forward() {
         }
     } else {
         #ifdef CUDA_FOUND
-        float* h_C = &(output->storage[0]);
-        float* h_A = &(lhs->storage[0]);
-        float* h_B = &(rhs->storage[0]);
-        matmulRelu(h_C, h_A, h_B, output->dimension[0], output->dimension[1], rhs->dimension[1]);
+            matmulReluDevice(output->d_storage, lhs->d_storage, rhs->d_storage,
+                             output->dimension[0], output->dimension[1], rhs->dimension[1]);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -396,7 +368,7 @@ void MatMulReluOp::backward() {
             }
         }
 
-        // grad_rhs = lhs^T @ (output->grad * relu_mask)`
+        // grad_rhs = lhs^T @ (output->grad * relu_mask)
         for (size_t k = 0; k < rhs->dimension[0]; k++) {
             for (size_t j = 0; j < rhs->dimension[1]; j++) {
                 float sum = 0.0f;
@@ -409,7 +381,11 @@ void MatMulReluOp::backward() {
         }
     } else {
         #ifdef CUDA_FOUND
-            throw std::runtime_error("GPU Implementation Not Supported");
+            int M = lhs->dimension[0];
+            int K = lhs->dimension[1];
+            int N = rhs->dimension[1];
+            matmulReluBackwardDevice(lhs->d_grad, rhs->d_grad, output->d_grad,
+                                     lhs->d_storage, rhs->d_storage, output->d_storage, M, K, N);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -467,12 +443,8 @@ void MSEOp::forward() {
         output->setValue({0}, mse);
     } else {
         #ifdef CUDA_FOUND
-            float* h_output = &(output->storage[0]);
-            float* h_input = &(input->storage[0]);
-            float* h_groundTruth = &(h_groundTruth->storage[0]);
             int size = input->storage.size();
-
-            MSE(h_output, h_input, h_groundTruth, size);
+            mseDevice(output->d_storage, input->d_storage, groundTruth->d_storage, size);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -494,7 +466,9 @@ void MSEOp::backward() {
         }
     } else {
         #ifdef CUDA_FOUND
-            throw std::runtime_error("GPU Implementation Not Supported");
+            int size = input->storage.size();
+            mseBackwardDevice(input->d_grad, output->d_grad,
+                              input->d_storage, groundTruth->d_storage, size);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -637,7 +611,9 @@ void SoftmaxOp::forward() {
         }
     } else {
         #ifdef CUDA_FOUND
-            throw std::runtime_error("GPU Implementation Not Supported");
+            int batch = input->dimension[0];
+            int classes = input->dimension[1];
+            softmaxDevice(output->d_storage, input->d_storage, batch, classes);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -665,7 +641,10 @@ void SoftmaxOp::backward() {
         }
     } else {
         #ifdef CUDA_FOUND
-            throw std::runtime_error("GPU Implementation Not Supported");
+            int batch = input->dimension[0];
+            int classes = input->dimension[1];
+            softmaxBackwardDevice(input->d_grad, output->d_grad, output->d_storage,
+                                  batch, classes);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
         #endif
@@ -703,39 +682,62 @@ std::string CrossEntropyOp::print() {
 };
 
 void CrossEntropyOp::forward() {
-    size_t batch = input->dimension[0];
-    size_t classes = input->dimension[1];
+    if (backend == CPU) {
+        size_t batch = input->dimension[0];
+        size_t classes = input->dimension[1];
 
-    float total_loss = 0.0f;
-    for (size_t b = 0; b < batch; b++) {
-        float sample_loss = 0.0f;
-        for (size_t c = 0; c < classes; c++) {
-            // the epsilon value 
-            float epsilon = 1e-8f;
-            float pred = input->getValue({b, c}) + epsilon;
-            // in the case of one hot encoding
-            // this evaluate to zero except for the correct prediction
-            // groundTruth->getValue({b, c}) would be 0
-            sample_loss += groundTruth->getValue({b, c}) * std::log(pred);
+        float total_loss = 0.0f;
+        for (size_t b = 0; b < batch; b++) {
+            float sample_loss = 0.0f;
+            for (size_t c = 0; c < classes; c++) {
+                // the epsilon value
+                float epsilon = 1e-8f;
+                float pred = input->getValue({b, c}) + epsilon;
+                // in the case of one hot encoding
+                // this evaluate to zero except for the correct prediction
+                // groundTruth->getValue({b, c}) would be 0
+                sample_loss += groundTruth->getValue({b, c}) * std::log(pred);
+            }
+            // sample across batches
+            total_loss += -sample_loss;
         }
-        // sample across batches
-        total_loss += -sample_loss;
-    }
 
-    output->setValue({0}, total_loss / batch);
+        output->setValue({0}, total_loss / batch);
+    } else {
+        #ifdef CUDA_FOUND
+            int batch = input->dimension[0];
+            int classes = input->dimension[1];
+            crossEntropyDevice(output->d_storage, input->d_storage,
+                               groundTruth->d_storage, batch, classes);
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    }
 };
 
 void CrossEntropyOp::backward() {
-    size_t batch = input->dimension[0];
-    size_t classes = input->dimension[1];
-    float incomingGrad = output->getGrad({0});
+    if (backend == CPU) {
+        size_t batch = input->dimension[0];
+        size_t classes = input->dimension[1];
+        float incomingGrad = output->getGrad({0});
 
-    for (size_t b = 0; b < batch; b++) {
-        for (size_t c = 0; c < classes; c++) {
-            float pred = input->getValue({b, c}) + 1e-8f;
-            float grad = (-groundTruth->getValue({b, c}) / pred) * incomingGrad / batch;
-            input->accumulateGrad({b, c}, grad);
+        for (size_t b = 0; b < batch; b++) {
+            for (size_t c = 0; c < classes; c++) {
+                float pred = input->getValue({b, c}) + 1e-8f;
+                float grad = (-groundTruth->getValue({b, c}) / pred) * incomingGrad / batch;
+                input->accumulateGrad({b, c}, grad);
+            }
         }
+    } else {
+        #ifdef CUDA_FOUND
+            int batch = input->dimension[0];
+            int classes = input->dimension[1];
+            crossEntropyBackwardDevice(input->d_grad, output->d_grad,
+                                       input->d_storage, groundTruth->d_storage,
+                                       batch, classes);
+        #else
+            throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
     }
 };
 

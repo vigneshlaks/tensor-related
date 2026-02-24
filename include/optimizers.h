@@ -18,6 +18,8 @@ public:
     void forward(std::vector<uint8_t> input, uint8_t output);
     void backward();
     void zeroGrad();
+    void initDevice();
+    void syncToHost();
 
     virtual void descentStep() = 0;
     virtual ~Optimizers() = default;

@@ -18,8 +18,11 @@ public:
     std::vector<float> storage = {};
     std::vector<size_t> dimension = {};
     std::vector<float> grad = {};
-
     std::vector<size_t> stride = {};
+
+    float* d_storage = nullptr;
+    float* d_grad = nullptr;
+    bool onDevice = false;
 
     Tensor(std::vector<size_t> dimension);
     Tensor(std::vector<size_t> dimension, std::vector<float> storage);
@@ -31,6 +34,14 @@ public:
     void accumulateGrad(std::vector<size_t> index, float value);
     std::string print();
     std::string printVerbose();
+
+    void toDevice();
+    void toHost();
+    void freeDevice();
+    void zeroGrad();
+    void setGradElement(size_t index, float value);
+    void sgdUpdate(float lr);
+    ~Tensor();
 };
 
 #endif
