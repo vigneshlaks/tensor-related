@@ -31,20 +31,5 @@ public:
     void descentStep() override;
 };
 
-class Adam : public Optimizers {
-private:
-    float beta1;
-    float beta2;
-    float epsilon;
-    int t = 0;
-
-    // ID to momentum / velocity vectors
-    std::unordered_map<std::string, std::vector<float>> m;
-    std::unordered_map<std::string, std::vector<float>> v;
-
-public:
-    Adam(float lr, LinkedList* l, float b1, float b2, float e);
-    void descentStep() override;
-};
 
 #endif

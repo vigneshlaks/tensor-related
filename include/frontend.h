@@ -12,7 +12,9 @@ enum OpType {
     Matmul,
     Relu,
     MatmulRelu,
-    MSE
+    MSE,
+    Softmax,
+    CrossEntropy
 };
 
 // IR Representation
@@ -31,6 +33,7 @@ struct LinkedList {
     Node* head;
     Node* tail;
     std::unordered_map<std::string, Node*> nodeMap;
+
 };
 
 class Pass;

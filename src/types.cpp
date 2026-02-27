@@ -6,6 +6,10 @@
 #include "../include/gpu_exec.h"
 #endif
 
+#ifdef METAL_FOUND
+#include "../include/metal_exec.h"
+#endif
+
 Tensor::~Tensor() {
     freeDevice();
 }
@@ -39,7 +43,7 @@ Tensor::Tensor(std::vector<size_t> d, std::vector<float> s) : dimension(d), stor
 
 // gets the flat index
 float Tensor::getValue(std::vector<size_t> index) {
-    int flatIndex = 0;
+    size_t flatIndex = 0;
     // bounds check
     for (int i = 0; i < dimension.size(); i++) {
         if (dimension[i] - 1 < index[i]) {
@@ -54,7 +58,7 @@ float Tensor::getValue(std::vector<size_t> index) {
 };
 
 void Tensor::setValue(std::vector<size_t> index, float value) {
-    int flatIndex = 0;
+    size_t flatIndex = 0;
 
     // bounds check
     for (int i = 0; i < dimension.size(); i++) {
@@ -71,7 +75,7 @@ void Tensor::setValue(std::vector<size_t> index, float value) {
 };
 
 float Tensor::getGrad(std::vector<size_t> index) {
-    int flatIndex = 0;
+    size_t flatIndex = 0;
     for (int i = 0; i < dimension.size(); i++) {
         flatIndex += index[i] * stride[i];
     }
@@ -79,7 +83,7 @@ float Tensor::getGrad(std::vector<size_t> index) {
 };
 
 void Tensor::setGrad(std::vector<size_t> index, float value) {
-    int flatIndex = 0;
+    size_t flatIndex = 0;
     for (int i = 0; i < dimension.size(); i++) {
         flatIndex += index[i] * stride[i];
     }
@@ -87,7 +91,7 @@ void Tensor::setGrad(std::vector<size_t> index, float value) {
 };
 
 void Tensor::accumulateGrad(std::vector<size_t> index, float value) {
-    int flatIndex = 0;
+    size_t flatIndex = 0;
     for (int i = 0; i < dimension.size(); i++) {
         flatIndex += index[i] * stride[i];
     }
@@ -137,66 +141,85 @@ std::string Tensor::printVerbose() {
 };
 
 void Tensor::toDevice() {
-    #ifdef CUDA_FOUND
     size_t storageBytes = storage.size() * sizeof(float);
     size_t gradBytes = grad.size() * sizeof(float);
 
-    // Allocate if not already on device
-    if (d_storage == nullptr) {
-        gpuMalloc(&d_storage, storageBytes);
-    }
-    if (d_grad == nullptr) {
-        gpuMalloc(&d_grad, gradBytes);
-    }
-
-    // Copy data to device
+    #ifdef CUDA_FOUND
+    if (d_storage == nullptr) { gpuMalloc(&d_storage, storageBytes); }
+    if (d_grad    == nullptr) { gpuMalloc(&d_grad,    gradBytes);    }
     gpuCopyToDevice(d_storage, storage.data(), storageBytes);
-    gpuCopyToDevice(d_grad, grad.data(), gradBytes);
+    gpuCopyToDevice(d_grad,    grad.data(),    gradBytes);
+    onDevice = true;
+    #endif
+
+    #ifdef METAL_FOUND
+    if (d_storage == nullptr) { metalMalloc(&d_storage, storageBytes); }
+    if (d_grad    == nullptr) { metalMalloc(&d_grad,    gradBytes);    }
+    metalCopyToDevice(d_storage, storage.data(), storageBytes);
+    metalCopyToDevice(d_grad,    grad.data(),    gradBytes);
     onDevice = true;
     #endif
 }
 
 void Tensor::toHost() {
-    #ifdef CUDA_FOUND
-    if (!onDevice || d_storage == nullptr) {
-        return;  // Nothing to copy
-    }
+    if (!onDevice || d_storage == nullptr) return;
 
     size_t storageBytes = storage.size() * sizeof(float);
     size_t gradBytes = grad.size() * sizeof(float);
 
+    #ifdef CUDA_FOUND
     gpuCopyToHost(storage.data(), d_storage, storageBytes);
-    gpuCopyToHost(grad.data(), d_grad, gradBytes);
+    gpuCopyToHost(grad.data(),    d_grad,    gradBytes);
+    #endif
+
+    #ifdef METAL_FOUND
+    metalCopyToHost(storage.data(), d_storage, storageBytes);
+    metalCopyToHost(grad.data(),    d_grad,    gradBytes);
     #endif
 }
 
 void Tensor::zeroGrad() {
-    #ifdef CUDA_FOUND
     if (onDevice) {
+        #ifdef CUDA_FOUND
         zeroDevice(d_grad, grad.size());
         return;
+        #endif
+
+        #ifdef METAL_FOUND
+        metalZeroDevice(d_grad, grad.size());
+        return;
+        #endif
     }
-    #endif
     std::fill(grad.begin(), grad.end(), 0.0f);
 }
 
 void Tensor::setGradElement(size_t index, float value) {
-    #ifdef CUDA_FOUND
     if (onDevice) {
+        #ifdef CUDA_FOUND
         gpuCopyToDevice(d_grad + index, &value, sizeof(float));
         return;
+        #endif
+
+        #ifdef METAL_FOUND
+        metalCopyToDevice(d_grad + index, &value, sizeof(float));
+        return;
+        #endif
     }
-    #endif
     grad[index] = value;
 }
 
 void Tensor::sgdUpdate(float lr) {
-    #ifdef CUDA_FOUND
     if (onDevice) {
+        #ifdef CUDA_FOUND
         sgdUpdateDevice(d_storage, d_grad, lr, storage.size());
         return;
+        #endif
+
+        #ifdef METAL_FOUND
+        metalSgdUpdateDevice(d_storage, d_grad, lr, storage.size());
+        return;
+        #endif
     }
-    #endif
     for (size_t i = 0; i < storage.size(); i++) {
         storage[i] -= lr * grad[i];
     }
@@ -204,14 +227,14 @@ void Tensor::sgdUpdate(float lr) {
 
 void Tensor::freeDevice() {
     #ifdef CUDA_FOUND
-    if (d_storage != nullptr) {
-        gpuFree(d_storage);
-        d_storage = nullptr;
-    }
-    if (d_grad != nullptr) {
-        gpuFree(d_grad);
-        d_grad = nullptr;
-    }
+    if (d_storage != nullptr) { gpuFree(d_storage); d_storage = nullptr; }
+    if (d_grad    != nullptr) { gpuFree(d_grad);    d_grad    = nullptr; }
+    onDevice = false;
+    #endif
+
+    #ifdef METAL_FOUND
+    if (d_storage != nullptr) { metalFree(d_storage); d_storage = nullptr; }
+    if (d_grad    != nullptr) { metalFree(d_grad);    d_grad    = nullptr; }
     onDevice = false;
     #endif
 }

@@ -75,7 +75,9 @@ LinkedList parseInputs(json instrs) {
         {"const", OpType::Const},
         {"matmul", OpType::Matmul},
         {"relu", OpType::Relu},
-        {"mse_loss", OpType::MSE}
+        {"mse_loss", OpType::MSE},
+        {"softmax", OpType::Softmax},
+        {"cross_entropy", OpType::CrossEntropy}
     };
     
     int seed = 12345;
@@ -225,7 +227,9 @@ void printLinkedList(LinkedList ll) {
         {OpType::Matmul, "MatMul"},
         {OpType::Relu, "ReLU"},
         {OpType::MatmulRelu, "MatMul+ReLU"},
-        {OpType::MSE, "MSE"}
+        {OpType::MSE, "MSE"},
+        {OpType::Softmax, "Softmax"},
+        {OpType::CrossEntropy, "CrossEntropy"}
     };
 
     std::cout << "LinkedList (" << ll.nodeMap.size() << " nodes):" << std::endl;

@@ -16,34 +16,6 @@ struct MNISTData {
     std::vector<uint8_t> labels;
 };
 
-void test_ir(const std::string& filename) {
-        std::ifstream file(filename);
-        if (!file.is_open()) {
-            std::cout << "Failed to open " << filename << std::endl;
-            return;
-        }
-        json inputIR;
-        file >> inputIR;
-
-        Metadata meta = parseMetaData(inputIR);
-        LinkedList list = parseJSON(inputIR);
-
-        std::cout << "Before optimization:" << std::endl;
-        printLinkedList(list);
-
-        PassManager pm(&list, meta.passes);
-        pm.runGlobal();
-
-        std::cout << "\nAfter optimization:" << std::endl;
-        printLinkedList(list);
-
-        int numEpochs = 5;
-        // learning rate
-        SGD sgd = SGD(0.01f, &list);
-
-        std::cout << "\nExecution complete!" << std::endl;
-}
-
 // 32 bit int
 uint32_t readInt(std::ifstream& file) {
     uint8_t bytes[4];
@@ -106,13 +78,11 @@ auto loadData(std::string inputs, std::string outputs) {
 }
 
 int main(int argc, char* argv[]) {
-    // get image inputs and outputs
     auto trainData = loadData("data/MNIST/raw/train-images-idx3-ubyte",
                                "data/MNIST/raw/train-labels-idx1-ubyte");
     auto testData = loadData("data/MNIST/raw/t10k-images-idx3-ubyte",
                               "data/MNIST/raw/t10k-labels-idx1-ubyte");
 
-    // ir testing
     std::cout << "Train images: " << trainData.images.size() << std::endl;
     std::cout << "Train labels: " << trainData.labels.size() << std::endl;
 
@@ -138,10 +108,21 @@ int main(int argc, char* argv[]) {
 
     #ifdef CUDA_FOUND
     std::cout << "Running on GPU" << std::endl;
-    #else
+    BackendPass gpuPass(GPU);
+    gpuPass.globalApply(&list);
+    sgd.initDevice();
+    #endif
+
+    #ifdef METAL_FOUND
+    std::cout << "Running on Metal (M1)" << std::endl;
+    BackendPass metalPass(METAL);
+    metalPass.globalApply(&list);
+    sgd.initDevice();
+    #endif
+
+    #if !defined(CUDA_FOUND) && !defined(METAL_FOUND)
     std::cout << "Running on CPU" << std::endl;
     #endif
-    sgd.initDevice();
 
     
 

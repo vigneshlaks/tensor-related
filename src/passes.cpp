@@ -151,14 +151,17 @@ int QuantizationPass::globalApply(LinkedList* list) {
     // We need to dequantize before computing the loss
     Node* lastComputeNode = list->head;
     while (lastComputeNode->next != nullptr && !lastComputeNode->next->id.empty()) {
-        if (lastComputeNode->next->opType == MSE) {
+        if (lastComputeNode->next->opType == MSE ||
+            lastComputeNode->next->opType == CrossEntropy) {
             break;
         }
         lastComputeNode = lastComputeNode->next;
     }
 
     // Insert dequantization node before loss if loss exists
-    if (lastComputeNode && lastComputeNode->next && lastComputeNode->next->opType == MSE) {
+    if (lastComputeNode && lastComputeNode->next &&
+        (lastComputeNode->next->opType == MSE ||
+         lastComputeNode->next->opType == CrossEntropy)) {
         Node* dequantNode = new Node();
         dequantNode->id = lastComputeNode->id + "_dequantized";
         dequantNode->opType = Const;

@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "passes": [
+      {"type": "backend",      "config": {"backend": "cpu"}},
+      {"type": "quantization", "config": {"precision": "int8"}}
+    ]
+  },
+  "input": [
+    {"id": "input",  "op": "const",    "dim": [1, 4]},
+    {"id": "w1",     "op": "const",    "dim": [4, 2], "trainable": true},
+    {"id": "hidden", "op": "matmul",   "args": ["input", "w1"]},
+    {"id": "loss",   "op": "mse_loss", "args": ["hidden"], "dim": [1, 2]}
+  ]
+}

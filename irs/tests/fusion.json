@@ -1,0 +1,15 @@
+{
+  "metadata": {
+    "passes": [
+      {"type": "backend", "config": {"backend": "cpu"}},
+      {"type": "fusion",  "config": {"enabled": true}}
+    ]
+  },
+  "input": [
+    {"id": "input",     "op": "const",  "dim": [1, 2]},
+    {"id": "w1",        "op": "const",  "dim": [2, 2], "trainable": true},
+    {"id": "hidden",    "op": "matmul", "args": ["input", "w1"]},
+    {"id": "activated", "op": "relu",   "args": ["hidden"]},
+    {"id": "loss",      "op": "mse_loss", "args": ["activated"], "dim": [1, 2]}
+  ]
+}

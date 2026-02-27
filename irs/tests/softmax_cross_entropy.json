@@ -1,0 +1,14 @@
+{
+  "metadata": {
+    "passes": [
+      {"type": "backend", "config": {"backend": "cpu"}}
+    ]
+  },
+  "input": [
+    {"id": "input",       "op": "const",         "dim": [1, 4]},
+    {"id": "weights",     "op": "const",         "dim": [4, 3], "trainable": true},
+    {"id": "logits",      "op": "matmul",        "args": ["input", "weights"]},
+    {"id": "softmax_out", "op": "softmax",       "args": ["logits"]},
+    {"id": "loss",        "op": "cross_entropy", "args": ["softmax_out"], "dim": [1, 3]}
+  ]
+}

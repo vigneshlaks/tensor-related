@@ -10,7 +10,8 @@
 enum Backend
 {
     CPU,
-    GPU
+    GPU,
+    METAL
 };
 
 
@@ -34,9 +35,7 @@ public:
 class LossOp : public Op
 {
 public:
-    Backend backend = CPU;
     std::shared_ptr<Tensor> groundTruth;
-    int setBackend(Backend b);
     virtual ~LossOp() = default;
     virtual bool verify() = 0;
     virtual std::string print() = 0;

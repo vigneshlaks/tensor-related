@@ -7,6 +7,10 @@
 #include "../include/gpu_exec.h"
 #endif
 
+#ifdef METAL_FOUND
+#include "../include/metal_exec.h"
+#endif
+
 #include <iostream>
 #include <limits>
 #include <algorithm>
@@ -134,7 +138,7 @@ bool DequantizationOp::verify() {
 };
 
 std::string DequantizationOp::print() {
-    return "QuantizationOp(input: " + input->print() + " → " + output->print() + ")";
+    return "DequantizationOp(input: " + input->print() + " → " + output->print() + ")";
 };
 
 void DequantizationOp::forward() {
@@ -157,11 +161,7 @@ void DequantizationOp::backward() {
             input->grad[i] = output->grad[i];
         }
     } else {
-        #ifdef CUDA_FOUND
-            throw std::runtime_error("GPU Implementation Not Supported");
-        #else
-            throw std::runtime_error("GPU Implementation Not Supported");
-        #endif
+        throw std::runtime_error("GPU Dequantization Not Supported");
     }
 };
 
@@ -202,12 +202,19 @@ void MatMulOp::forward() {
                 output->setValue({i, j}, sum);
             }
         }
-    } else {
+    } else if (backend == GPU) {
         #ifdef CUDA_FOUND
             matmulDevice(output->d_storage, lhs->d_storage, rhs->d_storage,
                          output->dimension[0], output->dimension[1], rhs->dimension[0]);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    } else if (backend == METAL) {
+        #ifdef METAL_FOUND
+            metalMatmulDevice(output->d_storage, lhs->d_storage, rhs->d_storage,
+                              output->dimension[0], output->dimension[1], rhs->dimension[0]);
+        #else
+            throw std::runtime_error("Metal Not Supported");
         #endif
     }
 };
@@ -235,7 +242,7 @@ void MatMulOp::backward() {
                 rhs->accumulateGrad({k, j}, sum);
             }
         }
-    } else {
+    } else if (backend == GPU) {
         #ifdef CUDA_FOUND
             int M = lhs->dimension[0];
             int K = lhs->dimension[1];
@@ -244,6 +251,16 @@ void MatMulOp::backward() {
                                  lhs->d_storage, rhs->d_storage, M, K, N);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    } else if (backend == METAL) {
+        #ifdef METAL_FOUND
+            int M = lhs->dimension[0];
+            int K = lhs->dimension[1];
+            int N = rhs->dimension[1];
+            metalMatmulBackwardDevice(lhs->d_grad, rhs->d_grad, output->d_grad,
+                                      lhs->d_storage, rhs->d_storage, M, K, N);
+        #else
+            throw std::runtime_error("Metal Not Supported");
         #endif
     }
 };
@@ -287,12 +304,18 @@ void ReluOp::forward() {
                 }
             }
         }
-    } else {
+    } else if (backend == GPU) {
         #ifdef CUDA_FOUND
             int size = input->storage.size();
             reluDevice(output->d_storage, input->d_storage, size);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    } else if (backend == METAL) {
+        #ifdef METAL_FOUND
+            metalReluDevice(output->d_storage, input->d_storage, input->storage.size());
+        #else
+            throw std::runtime_error("Metal Not Supported");
         #endif
     }
 };
@@ -303,12 +326,19 @@ void ReluOp::backward() {
             float mask = (output->storage[i] > 0) ? 1.0f : 0.0f;
             input->grad[i] += output->grad[i] * mask;
         }
-    } else {
+    } else if (backend == GPU) {
         #ifdef CUDA_FOUND
             int size = output->storage.size();
             reluBackwardDevice(input->d_grad, output->d_grad, output->d_storage, size);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    } else if (backend == METAL) {
+        #ifdef METAL_FOUND
+            metalReluBackwardDevice(input->d_grad, output->d_grad, output->d_storage,
+                                    output->storage.size());
+        #else
+            throw std::runtime_error("Metal Not Supported");
         #endif
     }
 };
@@ -344,12 +374,19 @@ void MatMulReluOp::forward() {
                 }
             }
         }
-    } else {
+    } else if (backend == GPU) {
         #ifdef CUDA_FOUND
             matmulReluDevice(output->d_storage, lhs->d_storage, rhs->d_storage,
                              output->dimension[0], output->dimension[1], rhs->dimension[1]);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    } else if (backend == METAL) {
+        #ifdef METAL_FOUND
+            metalMatmulReluDevice(output->d_storage, lhs->d_storage, rhs->d_storage,
+                                  output->dimension[0], output->dimension[1], rhs->dimension[1]);
+        #else
+            throw std::runtime_error("Metal Not Supported");
         #endif
     }
 };
@@ -379,7 +416,7 @@ void MatMulReluOp::backward() {
                 rhs->accumulateGrad({k, j}, sum);
             }
         }
-    } else {
+    } else if (backend == GPU) {
         #ifdef CUDA_FOUND
             int M = lhs->dimension[0];
             int K = lhs->dimension[1];
@@ -388,6 +425,17 @@ void MatMulReluOp::backward() {
                                      lhs->d_storage, rhs->d_storage, output->d_storage, M, K, N);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    } else if (backend == METAL) {
+        #ifdef METAL_FOUND
+            int M = lhs->dimension[0];
+            int K = lhs->dimension[1];
+            int N = rhs->dimension[1];
+            metalMatmulReluBackwardDevice(lhs->d_grad, rhs->d_grad, output->d_grad,
+                                          lhs->d_storage, rhs->d_storage, output->d_storage,
+                                          M, K, N);
+        #else
+            throw std::runtime_error("Metal Not Supported");
         #endif
     }
 };
@@ -441,12 +489,19 @@ void MSEOp::forward() {
 
         float mse = sum / (batch * features);
         output->setValue({0}, mse);
-    } else {
+    } else if (backend == GPU) {
         #ifdef CUDA_FOUND
             int size = input->storage.size();
             mseDevice(output->d_storage, input->d_storage, groundTruth->d_storage, size);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    } else if (backend == METAL) {
+        #ifdef METAL_FOUND
+            metalMseDevice(output->d_storage, input->d_storage, groundTruth->d_storage,
+                           input->storage.size());
+        #else
+            throw std::runtime_error("Metal Not Supported");
         #endif
     }
 };
@@ -464,13 +519,21 @@ void MSEOp::backward() {
                 input->accumulateGrad({b, f}, scale * diff * incomingGradient);
             }
         }
-    } else {
+    } else if (backend == GPU) {
         #ifdef CUDA_FOUND
             int size = input->storage.size();
             mseBackwardDevice(input->d_grad, output->d_grad,
                               input->d_storage, groundTruth->d_storage, size);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    } else if (backend == METAL) {
+        #ifdef METAL_FOUND
+            metalMseBackwardDevice(input->d_grad, output->d_grad,
+                                   input->d_storage, groundTruth->d_storage,
+                                   input->storage.size());
+        #else
+            throw std::runtime_error("Metal Not Supported");
         #endif
     }
 };
@@ -547,10 +610,7 @@ std::vector<size_t> DequantizationOp::inferOutputShape() {
 }
 
 std::vector<size_t> MSEOp::inferOutputShape() {
-    if (!input) {
-        return {};
-    }
-    return input->dimension;
+    return {1};
 };
 
 std::vector<size_t> SoftmaxOp::inferOutputShape() {
@@ -561,10 +621,7 @@ std::vector<size_t> SoftmaxOp::inferOutputShape() {
 };
 
 std::vector<size_t> CrossEntropyOp::inferOutputShape() {
-    if (!input) {
-        return {};
-    }
-    return input->dimension;
+    return {1};
 };
 
 bool SoftmaxOp::verify() {
@@ -609,13 +666,20 @@ void SoftmaxOp::forward() {
                 output->setValue({b, c}, val);
             }
         }
-    } else {
+    } else if (backend == GPU) {
         #ifdef CUDA_FOUND
             int batch = input->dimension[0];
             int classes = input->dimension[1];
             softmaxDevice(output->d_storage, input->d_storage, batch, classes);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    } else if (backend == METAL) {
+        #ifdef METAL_FOUND
+            metalSoftmaxDevice(output->d_storage, input->d_storage,
+                               input->dimension[0], input->dimension[1]);
+        #else
+            throw std::runtime_error("Metal Not Supported");
         #endif
     }
 };
@@ -639,7 +703,7 @@ void SoftmaxOp::backward() {
                 input->accumulateGrad({b, c}, s * (g - dot));
             }
         }
-    } else {
+    } else if (backend == GPU) {
         #ifdef CUDA_FOUND
             int batch = input->dimension[0];
             int classes = input->dimension[1];
@@ -647,6 +711,13 @@ void SoftmaxOp::backward() {
                                   batch, classes);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    } else if (backend == METAL) {
+        #ifdef METAL_FOUND
+            metalSoftmaxBackwardDevice(input->d_grad, output->d_grad, output->d_storage,
+                                       input->dimension[0], input->dimension[1]);
+        #else
+            throw std::runtime_error("Metal Not Supported");
         #endif
     }
 };
@@ -703,7 +774,7 @@ void CrossEntropyOp::forward() {
         }
 
         output->setValue({0}, total_loss / batch);
-    } else {
+    } else if (backend == GPU) {
         #ifdef CUDA_FOUND
             int batch = input->dimension[0];
             int classes = input->dimension[1];
@@ -711,6 +782,14 @@ void CrossEntropyOp::forward() {
                                groundTruth->d_storage, batch, classes);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    } else if (backend == METAL) {
+        #ifdef METAL_FOUND
+            metalCrossEntropyDevice(output->d_storage, input->d_storage,
+                                    groundTruth->d_storage,
+                                    input->dimension[0], input->dimension[1]);
+        #else
+            throw std::runtime_error("Metal Not Supported");
         #endif
     }
 };
@@ -728,7 +807,7 @@ void CrossEntropyOp::backward() {
                 input->accumulateGrad({b, c}, grad);
             }
         }
-    } else {
+    } else if (backend == GPU) {
         #ifdef CUDA_FOUND
             int batch = input->dimension[0];
             int classes = input->dimension[1];
@@ -737,6 +816,14 @@ void CrossEntropyOp::backward() {
                                        batch, classes);
         #else
             throw std::runtime_error("GPU Implementation Not Supported");
+        #endif
+    } else if (backend == METAL) {
+        #ifdef METAL_FOUND
+            metalCrossEntropyBackwardDevice(input->d_grad, output->d_grad,
+                                            input->d_storage, groundTruth->d_storage,
+                                            input->dimension[0], input->dimension[1]);
+        #else
+            throw std::runtime_error("Metal Not Supported");
         #endif
     }
 };
