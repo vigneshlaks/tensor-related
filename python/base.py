@@ -1,41 +1,89 @@
-import sys                                                                       
+import sys                                                                                                               
+                
+# guards.py:1895 
+def type_guard(x):                                                                                                       
+    t = type(x)                                                                                                          
+    return lambda y: type(y) == t
+
+# guards.py:2121
+def value_guard(x):
+    val = x
+    return lambda y: y == val
+
+# guards.py:2698
+def shape_guard(x):
+    if hasattr(x, 'shape'):
+        shape = x.shape
+        return lambda y: hasattr(y, 'shape') and y.shape == shape
+    return lambda y: True  # no-op if not array-like
+
+def dtype_guard(x):
+    if hasattr(x, 'dtype'):
+        dtype = x.dtype
+        return lambda y: hasattr(y, 'dtype') and y.dtype == dtype
+    return lambda y: True
 
 class Guard:
-    def __init__(self, x):
-        self.type = type(x)
+    def __init__(self, predicates: list):
+        # predicates: list of callables (x) -> bool
+        self.predicates = predicates
 
-    def check(self, x):
-        return type(x) == self.type
+    def check(self, x) -> bool:
+        return all(p(x) for p in self.predicates)
+
+def build_guard(x) -> Guard:
+    predicates = [type_guard(x)]
+
+    if isinstance(x, bool):
+        predicates.append(value_guard(x))
+    elif isinstance(x, int) and abs(x) < 100:
+        predicates.append(value_guard(x))
+    elif isinstance(x, str):
+        predicates.append(value_guard(x))
+
+    if hasattr(x, 'shape'):
+        predicates.append(shape_guard(x))
+    if hasattr(x, 'dtype'):
+        predicates.append(dtype_guard(x))
+
+    return Guard(predicates)
 
 class OptimizeContext:
-    def __init__(self):
-        self.compiled = None
-        self.guard = None
+    def __init__(self, cache_size_limit=8):
+        self.cache: list[tuple[Guard, object]] = []
+        self.cache_size_limit = cache_size_limit
 
     def __call__(self, fn):
         def wrapper(*args, **kwargs):
             x = args[0]
 
-            if self.guard and self.guard.check(x):
-                print("Guard passed - running compiled version")
-                return self.compiled(x)
+            for guard, compiled in self.cache:
+                if guard.check(x):
+                    print(f"  Guard passed for {x!r}")
+                    return compiled(x)
 
-            print("Compiling...")
-            self.guard = Guard(x)
-            # just set the compiled version
-            # to the actual function for now
-            self.compiled = fn
+            if len(self.cache) >= self.cache_size_limit:
+                print(f"  Cache full — falling back to eager for {x!r}")
+                return fn(x)
 
-            return self.compiled(x)
+            print(f"  Compiling for {x!r} ...")
+            guard = build_guard(x)
+            compiled = fn
+            self.cache.append((guard, compiled))
+            return compiled(x)
+
         return wrapper
+
 
 def optimize():
     return OptimizeContext()
+
 
 @optimize()
 def my_func(x):
     return x * 2
 
-print(my_func(5))    # compiles
-print(my_func(10))   # guard passes, uses compiled
-print(my_func("hi")) # guard fails, recompiles
+cases = [5, 5, 10, "hi", "hi", "bye", True, False, 5, 200]
+for v in cases:
+    print(f"my_func({v!r}) = {my_func(v)}")
+    print()
